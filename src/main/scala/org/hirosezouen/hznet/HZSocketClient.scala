@@ -171,7 +171,8 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
             /*
              * main loop
              */
-            actorSet += startConnectorActor(hzSoConf.endPoint, hzSoConf.localSocketAddressOpt, hzSoConf.connTimeout, self)
+            actorSet += startConnectorActor(hzSoConf.endPoint, hzSoConf.localSocketAddressOpt,
+                                            hzSoConf.connTimeout, hzSoConf.reuseAddress, self)
             loopfunc = loopConnecting 
             loop {
                 loopfunc()

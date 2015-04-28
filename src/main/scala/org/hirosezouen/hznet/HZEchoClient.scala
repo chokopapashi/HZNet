@@ -39,14 +39,14 @@ object HZEchoClient {
 
         var actors: Set[Actor] = Set.empty
 
-        val soClient = startSocketClient(HZSoClientConf(ip,port,10000,0),
+        val soClient = startSocketClient(HZSoClientConf(ip,port,10000,0,false),
                                          SocketIOStaticDataBuilder,
                                          self) {
             case (_,s: String) => {
                 self ! HZDataSending(s.getBytes)
             }
             case (_,HZDataReceived(receivedData)) => {
-                printf("Echo : %s%n", new String(receivedData))
+                log_info(new String(receivedData))
             }
         }
         actors += soClient

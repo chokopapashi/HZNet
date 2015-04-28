@@ -84,7 +84,7 @@ object HZMultiClient {
         }
 
         for(i <- 0 to (maxClient - 1)) {
-            val soClient = startSocketClient(HZSoClientConf(ip,port,10000,0),
+            val soClient = startSocketClient(HZSoClientConf(ip,port,10000,0,false),
                                              MultiClientSocketIOStaticDataBuilder(i),
                                              self) {
                 case (staticData: MultiClientSocketIOStaticData, HZEstablished(_,_)) => {
@@ -94,7 +94,7 @@ object HZMultiClient {
                     self ! HZDataSending(s.getBytes)
                 }
                 case (_,HZDataReceived(receivedData)) => {
-                    println(new String(receivedData))
+                    log_info(new String(receivedData))
                 }
             }
             actors += soClient
@@ -103,9 +103,8 @@ object HZMultiClient {
         }
 
         actors += startInputActor(System.in) {
-            case "q" | "Q" => {
-                exit(HZNormalStoped())
-            }
+            case "q" | "Q" => exit(HZNormalStoped())
+            case s         => actors.foreach(_ ! HZDataSending(s.getBytes) )
         }
 
         self.trapExit = true

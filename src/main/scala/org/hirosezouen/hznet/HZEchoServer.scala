@@ -24,7 +24,7 @@ object HZEchoServer {
         log_info("HZEchoServer:Start")
 
         val port = if(args.length < 1) {
-            System.err.println("Error : Argument required.")
+            log_error("Error : Argument required.")
             sys.exit(1)
         } else {
             args(0).toInt
@@ -45,7 +45,7 @@ object HZEchoServer {
                 log_info("Client connected:%s".format(so_desc))
             }
             case (_, HZDataReceived(receivedData)) => {
-                printf("Echo back : %s%n", new String(receivedData))
+                log_info(new String(receivedData))
                 self ! HZDataSending(receivedData)
             }
             case (_, HZIOStop(_,reason,_,_,_)) => {

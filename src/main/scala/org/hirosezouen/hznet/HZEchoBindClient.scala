@@ -48,14 +48,14 @@ object HZEchoBindClient {
 
         var actors: Set[Actor] = Set.empty
 
-        val soClient = startSocketClient(HZSoClientConf(ip,port,localIp,localPort,10000,0),
+        val soClient = startSocketClient(HZSoClientConf(ip,port,localIp,localPort,10000,0,false),
                                          SocketIOStaticDataBuilder,
                                          self) {
             case (_,s: String) => {
                 self ! HZDataSending(s.getBytes)
             }
             case (_,HZDataReceived(receivedData)) => {
-                println(new String(receivedData))
+                log_info(new String(receivedData))
             }
         }
         actors += soClient

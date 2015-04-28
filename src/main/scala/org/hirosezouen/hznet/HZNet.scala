@@ -56,22 +56,23 @@ case class HZPeerClosed() extends HZActorReason
 case class HZSoClientConf(endPoint: InetSocketAddress,
                           localSocketAddressOpt: Option[InetSocketAddress],
                           connTimeout: Int,
-                          recvTimeout: Int)
+                          recvTimeout: Int,
+                          reuseAddress: Boolean)
 {
     lazy val hostName = endPoint.getHostName
     lazy val port = endPoint.getPort 
 }
 object HZSoClientConf {
-    def apply(endPoint: InetSocketAddress): HZSoClientConf = new HZSoClientConf(endPoint,None,0,0)
+    def apply(endPoint: InetSocketAddress): HZSoClientConf = new HZSoClientConf(endPoint,None,0,0,false)
     def apply(endPoint: InetSocketAddress, localSocketAddress: InetSocketAddress): HZSoClientConf =
-        new HZSoClientConf(endPoint,Some(localSocketAddress),0,0)
-    def apply(endPoint: InetSocketAddress, localSocketAddress: InetSocketAddress, connTimeout: Int, recvTimeout: Int): HZSoClientConf =
-        new HZSoClientConf(endPoint,Some(localSocketAddress),connTimeout,recvTimeout)
-    def apply(hostName: String ,port: Int): HZSoClientConf = new HZSoClientConf(new InetSocketAddress(hostName,port),None,0,0)
-    def apply(hostName: String ,port: Int, connTimeout: Int, recvTimeout: Int): HZSoClientConf =
-        new HZSoClientConf(new InetSocketAddress(hostName,port),None,connTimeout,recvTimeout)
-    def apply(hostName: String ,port: Int, localName: String, localPort: Int, connTimeout: Int, recvTimeout: Int): HZSoClientConf =
-        new HZSoClientConf(new InetSocketAddress(hostName,port),Some(new InetSocketAddress(localName,localPort)),connTimeout,recvTimeout)
+        new HZSoClientConf(endPoint,Some(localSocketAddress),0,0,false)
+    def apply(endPoint: InetSocketAddress, localSocketAddress: InetSocketAddress, connTimeout: Int, recvTimeout: Int, reuseAddress: Boolean): HZSoClientConf =
+        new HZSoClientConf(endPoint,Some(localSocketAddress),connTimeout,recvTimeout,reuseAddress)
+    def apply(hostName: String ,port: Int): HZSoClientConf = new HZSoClientConf(new InetSocketAddress(hostName,port),None,0,0,false)
+    def apply(hostName: String ,port: Int, connTimeout: Int, recvTimeout: Int, reuseAddress: Boolean): HZSoClientConf =
+        new HZSoClientConf(new InetSocketAddress(hostName,port),None,connTimeout,recvTimeout,reuseAddress)
+    def apply(hostName: String ,port: Int, localName: String, localPort: Int, connTimeout: Int, recvTimeout: Int, reuseAddress: Boolean): HZSoClientConf =
+        new HZSoClientConf(new InetSocketAddress(hostName,port),Some(new InetSocketAddress(localName,localPort)),connTimeout,recvTimeout,reuseAddress)
 }
 
 case class HZSoServerConf(port: Int,
@@ -409,8 +410,8 @@ private object HZSocketControler {
         }
     }
 
-    def startConnectorActor(address: SocketAddress, localSocketAddressOpt: Option[InetSocketAddress], timeout: Int, parent: Actor): Actor = {
-        log_debug("startConnectorActor(%s,%s,%d,%s)".format(address,localSocketAddressOpt,timeout,parent))
+    def startConnectorActor(address: SocketAddress, localSocketAddressOpt: Option[InetSocketAddress], timeout: Int, reuseAddress: Boolean, parent: Actor): Actor = {
+        log_debug("startConnectorActor(%s,%s,%d,%s,%s)".format(address,localSocketAddressOpt,timeout,reuseAddress,parent))
 
         actor {
             implicit val actorName = ActorName("Connector")
@@ -423,6 +424,7 @@ private object HZSocketControler {
                 localSocketAddressOpt match {
                     case Some(socketAddress) => {
                         log_hzso_actor_debug("socket.bind(%s)".format(socketAddress))
+                        socket.setReuseAddress(reuseAddress)
                         socket.bind(socketAddress)
                     }
                     case None => /* Nothing to do */
