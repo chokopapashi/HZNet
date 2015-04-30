@@ -10,7 +10,7 @@
 lazy val commonSettings = Seq(
     organization := "org.hirosezouen",
     version      := "1.0.0",
-    scalaVersion := "2.10.5"
+    scalaVersion := "2.11.6"
 )
 
 lazy val root = (project in file(".")).
@@ -34,10 +34,10 @@ lazy val root = (project in file(".")).
         libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.12",
 
         // add HZUtil dependency
-//        libraryDependencies += "org.hirosezouen" % "hzutil_2.10" % "1.6.0",
+        libraryDependencies += "org.hirosezouen" % "hzutil_2.11" % "2.0.0",
 
         // add HZActor dependency
-        libraryDependencies += "org.hirosezouen" % "hzactor_2.10" % "1.0.0",
+        libraryDependencies += "org.hirosezouen" % "hzactor_2.11" % "1.0.0",
 
         // Avoid sbt warning ([warn] This usage is deprecated and will be removed in sbt 1.0)
         // Current Sbt dose not allow overwrite stabele release created publicLocal task.
