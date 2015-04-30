@@ -383,6 +383,11 @@ private object HZSocketControler {
             def loopExiting() {
                 log_hzso_actor_trace("loopExiting")
                 receive {
+                    case HZReqDelActor(a) => {
+                        log_hzso_actor_debug("loopRunning:HZReqDelActor(%s)".format(a))
+                        if(actorSet.contains(a))
+                            actorSet -= a
+                    }
                     case Exit(stopedActor: Actor, reason) => {
                         reason match {
                             case _ :HZActorReason =>
@@ -393,6 +398,7 @@ private object HZSocketControler {
                                 log_hzso_actor_debug("loopExiting:3:Exit(%s,%s)".format(stopedActor,HZUnknownReason(reason)))
                         }
                         actorSet -= stopedActor
+                        log_hzso_actor_trace("loopExiting:actorSet=%s".format(actorSet))
                         if(actorSet.isEmpty) exit(originReason)
                     }
                     case x => log_hzso_actor_debug("loopExiting:%s".format(x))
