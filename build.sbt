@@ -34,10 +34,10 @@ lazy val root = (project in file(".")).
         libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.12",
 
         // add HZUtil dependency
-        libraryDependencies += "org.hirosezouen" % "hzutil_2.11" % "2.0.0",
+        libraryDependencies += "org.hirosezouen" %% "hzutil" % "2.0.0",
 
         // add HZActor dependency
-        libraryDependencies += "org.hirosezouen" % "hzactor_2.11" % "1.0.0",
+        libraryDependencies += "org.hirosezouen" %% "hzactor" % "1.0.0",
 
         // Avoid sbt warning ([warn] This usage is deprecated and will be removed in sbt 1.0)
         // Current Sbt dose not allow overwrite stabele release created publicLocal task.
