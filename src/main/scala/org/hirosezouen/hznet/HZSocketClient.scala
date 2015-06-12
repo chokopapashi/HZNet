@@ -35,7 +35,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
     {
         log_trace("SocketClientActor(%s,%s)".format(staticDataBuilder,parent))
 
-        implicit val actorName = ActorName("SocketClient", self)
+        private implicit val actorName = ActorName("SocketClient", self)
 
         override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries=1, withinTimeRange=1 minutes, loggingEnabled=true) {
             case _: Exception => Stop
@@ -163,10 +163,10 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
         def start(staticDataBuilder: SocketIOStaticDataBuilder,
                   parent: ActorRef)
                  (nextBody: NextReceiver)
-                 (implicit system: ActorRefFactory): ActorRef
+                 (implicit context: ActorRefFactory): ActorRef
         = {
             log_debug("SocketClientActor:start(%s,%s)".format(staticDataBuilder,parent))
-            system.actorOf(Props(new SocketClientActor(staticDataBuilder,parent,nextBody)), "SocketClientActor")
+            context.actorOf(Props(new SocketClientActor(staticDataBuilder,parent,nextBody)), "SocketClientActor")
         }
     }
 }
@@ -180,10 +180,10 @@ object HZSocketClient {
                           staticDataBuilder: SocketIOStaticDataBuilder,
                           parent: ActorRef)
                          (nextBody: NextReceiver)
-                         (implicit system: ActorRefFactory): ActorRef
+                         (implicit context: ActorRefFactory): ActorRef
     = {
         log_debug("startSocketClient(%s,%s,%s)".format(hzSoConf,staticDataBuilder,parent))
-        HZSocketClient(hzSoConf).SocketClientActor.start(staticDataBuilder, parent)(nextBody)(system)
+        HZSocketClient(hzSoConf).SocketClientActor.start(staticDataBuilder, parent)(nextBody)(context)
     }
 }
 
