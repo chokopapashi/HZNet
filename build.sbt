@@ -19,11 +19,14 @@ lazy val root = (project in file(".")).
         // set the name of the project
         name := "HZNet",
 
-        // Actor of Ver2.10.1-> requires to add libraryDependencies explicitly
-        libraryDependencies <+= scalaVersion { "org.scala-lang" % "scala-actors" % _ },
-
         // Reflect of Ver2.10.1-> requires to add libraryDependencies explicitly
-        libraryDependencies <+= scalaVersion { "org.scala-lang" % "scala-reflect" % _ },
+//        libraryDependencies <+= scalaVersion { "org.scala-lang" % "scala-reflect" % _ },
+
+        // add Akka dependency
+//        resolvers += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/",
+//        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4-SNAPSHOT",
+        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.3.11",
+        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.3.11",
 
         // add ScalaTest dependency
         libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
