@@ -29,7 +29,7 @@ lazy val root = (project in file(".")).
         libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.3.11",
 
         // add ScalaTest dependency
-        libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
+        libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
 
         // add Logback, SLF4j dependencies
         libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.3",
@@ -54,6 +54,8 @@ lazy val root = (project in file(".")).
         parallelExecution in Test := false,
 //        logLevel := Level.Debug,
         scalacOptions += "-deprecation",
-        scalacOptions += "-feature"
+        scalacOptions += "-feature",
+        scalacOptions += "-Xlint",
+        scalacOptions += "-Xfatal-warnings"
     )
 
