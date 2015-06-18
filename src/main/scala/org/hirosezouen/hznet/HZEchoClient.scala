@@ -42,7 +42,7 @@ object HZEchoClient {
             case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
         }
 
-        private var actorStateSet = Set.empty[HZActorState]
+        private val actorStates = HZActorStates()
 
         private val soClient =
             startSocketClient(
@@ -58,7 +58,7 @@ object HZEchoClient {
             }
         }
         context.watch(soClient)
-        actorStateSet += HZActorState(soClient)
+        actorStates += soClient
 
         val inputActor = InputActor.start(System.in) {
             case "q" | "Q" => {
@@ -69,38 +69,38 @@ object HZEchoClient {
             }
         }
         context.watch(inputActor)
-        actorStateSet += HZActorState(inputActor)
+        actorStates += inputActor
 
         def receive = {
             case Terminated(stopedActor: Actor) => {
                 log_trace("MainActor:receive:Terminated(%s)".format(stopedActor))
-                actorStateSet = actorStateSet.filterNot(_.actor == stopedActor)
-                if(actorStateSet.isEmpty) {
-                    log_trace("MainActor:receive:Terminated:actorStateSet.isEmpty==true")
+                actorStates -= stopedActor
+                if(actorStates.isEmpty) {
+                    log_trace("MainActor:receive:Terminated:actorStates.isEmpty==true")
                     context.system.shutdown()
                 } else {
-                    log_trace("MainActor:receive:Terminated:actorStateSet.isEmpty==false")
-                    actorStateSet.foreach(_.actor ! HZStop())
+                    log_trace("MainActor:receive:Terminated:actorStates.isEmpty==false")
+                    actorStates.foreach(_.actor ! HZStop())
                     System.in.close()   /* InputAcotorはclose()の例外で停止する */
                     context.become(receiveExiting)
                 }
             }
             case reason: HZActorReason => {
                 log_debug("MainActor:receive:HZActorReason=%s".format(reason))
-                actorStateSet = actorStateSet.map(as => if(as.actor == sender) HZActorState(as.actor, reason) else as)
+                actorStates.addReason(sender, reason)
             }
         }
 
         def receiveExiting: Actor.Receive = {
             case Terminated(stopedActor: Actor) => {
                 log_trace("MainActor:receiveExiting:Terminated(%s)".format(stopedActor))
-                actorStateSet = actorStateSet.filterNot(_.actor == stopedActor)
-                if(actorStateSet.isEmpty)
+                actorStates -= stopedActor
+                if(actorStates.isEmpty)
                     context.system.shutdown()
             }
             case reason: HZActorReason => {
                 log_debug("MainActor:receiveExiting:HZActorReason=%s".format(reason))
-                actorStateSet = actorStateSet.map(as => if(as.actor == sender) HZActorState(as.actor, reason) else as)
+                actorStates.addReason(sender, reason)
             }
         }
     }
