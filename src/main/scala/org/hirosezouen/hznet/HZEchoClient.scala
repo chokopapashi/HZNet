@@ -44,10 +44,11 @@ object HZEchoClient {
 
         private var actorStateSet = Set.empty[HZActorState]
 
-        val soClient = startSocketClient(
-            HZSoClientConf(ip,port,10000,0,false),
-            SocketIOStaticDataBuilder,
-            self)
+        private val soClient =
+            startSocketClient(
+                HZSoClientConf(ip,port,10000,0,false),
+                SocketIOStaticDataBuilder,
+                self)
         {
             case (_,s: String) => {
                 self ! HZDataSending(s.getBytes)
