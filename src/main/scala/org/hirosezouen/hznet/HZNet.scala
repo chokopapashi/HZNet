@@ -20,6 +20,7 @@ import java.net.SocketException
 import java.net.SocketTimeoutException
 
 import scala.concurrent.duration._
+import scala.language.implicitConversions
 import scala.language.postfixOps
 import scala.util.control.Exception._
 
@@ -128,6 +129,40 @@ object SocketIOStaticDataBuilder extends SocketIOStaticDataBuilder {
 }
 
 case class ReceiveLoop()
+
+case class HZActorState(actor: ActorRef, stopReason: HZActorReason = HZNullReason)
+case class HZActorStates(var actorStateSet: Set[HZActorState] = Set.empty) {
+//    import HZActorStates._
+
+    def add(as: HZActorState): Unit = actorStateSet += as
+    def delete(a: ActorRef): Unit = actorStateSet = actorStateSet.filterNot(_.actor == a)
+    def add(a: ActorRef): Unit = add(HZActorState(a))
+    def addReason(a: ActorRef, reason: HZActorReason): Unit = 
+        actorStateSet = actorStateSet.map(as => if(as.actor == a) HZActorState(a, reason) else as)
+    def +=(as: HZActorState): Unit = add(as)
+    def +=(a: ActorRef): Unit = add(a)
+//    def ++=(assw: HZActorStateSeqWrap): Unit = actorStateSet ++= assw.seq
+//    def ++=(actorsw: ActorRefSeqWrap): Unit = actorStateSet ++= actorsw.seq.map(HZActorState(_))
+    def ++=(actors: Seq[ActorRef]): Unit = actorStateSet ++= actors.map(HZActorState(_))
+    def +=(actors: ActorRef*): Unit = this.++=(actors)
+    def -=(a: ActorRef): Unit = delete(a)
+    def contains(a: ActorRef): Boolean = actorStateSet.find(_.actor == a).isEmpty
+    def isEmpty: Boolean = actorStateSet.isEmpty
+    def nonEmpty: Boolean = actorStateSet.nonEmpty
+    def size: Int = actorStateSet.size
+
+    def foreach(f: (HZActorState) => Unit): Unit = actorStateSet.foreach(f(_))
+}
+object HZActorStates {
+//    case class HZActorStateSeqWrap(seq: Seq[HZActorState])
+//    case class ActorRefSeqWrap(seq: Seq[ActorRef])
+//    implicit def seq2HZActorStateSeqWrap(seq: Seq[HZActorState]) = HZActorStateSeqWrap(seq)
+//    implicit def seq2ActorRefSeqWrap(seq: Seq[ActorRef]) = ActorRefSeqWrap(seq)
+
+//    def apply(assw: HZActorStateSeqWrap): HZActorStates = HZActorStates(Set(assw.seq: _*))
+//    def apply(actorsw: ActorRefSeqWrap): HZActorStates = HZActorStates(Set(actorsw.seq.map(HZActorState(_)): _*))
+    def apply(actors: ActorRef*): HZActorStates = HZActorStates(Set(actors.map(HZActorState(_)): _*))
+}
 
 /* ======================================================================== */
 
@@ -296,8 +331,6 @@ object HZSocketControler {
 
     /* ---------------------------------------------------------------------*/
 
-    case class HZActorState(actor: ActorRef, stopReason: HZActorReason = HZNullReason)
-
     type NextReceiver = PartialFunction[Tuple2[SocketIOStaticData,Any],Any]
 
     class SocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, parent: ActorRef,
@@ -335,8 +368,7 @@ object HZSocketControler {
         private val receiverActor = ReceiverActor.start(in, so_desc, self)
         context.watch(receiverActor)
 
-        private var actorStateSet = Set.empty[HZActorState]
-        actorStateSet += (HZActorState(receiverActor), HZActorState(senderActor))
+        private val actorStates = HZActorStates(receiverActor, senderActor)
 
         override def preStart() {
             log_hzso_actor_debug()
@@ -351,18 +383,18 @@ object HZSocketControler {
             socket.close
             if(reason != null) originReason = reason
             stopedActorOpt match {
-                case Some(a) => actorStateSet = actorStateSet.filterNot(_.actor == a)
+                case Some(a) => actorStates -= a
                 case None =>
             }
-            if(actorStateSet.isEmpty)
+            if(actorStates.isEmpty)
                 exitNormaly(originReason,parent)
             else {
-                actorStateSet.foreach(_.actor ! HZStop())
+                actorStates.foreach(_.actor ! HZStop())
                 context.become(receiveExiting)
             }
         }
 
-        def receive() = {
+        def receive = {
 //            case dataReceived @ HZDataReceived(r) => {
 //                log_debug("SocketIO:receive:HZDataReceived(%s)".format(r))
 //                parent ! dataReceived
@@ -379,12 +411,12 @@ object HZSocketControler {
             }
             case HZReqAddActor(a) => {
                 log_hzso_actor_debug("receive:HZReqAddActor(%s)".format(a))
-                actorStateSet += HZActorState(a)
+                actorStates += a
                 context.watch(a)
             }
             case HZReqDelActor(a) => {
                 log_hzso_actor_debug("receive:HZReqDelActor(%s)".format(a))
-                actorStateSet = actorStateSet.filterNot(_.actor == a)
+                actorStates -= a
                 context.unwatch(a)
             }
             case HZStop() => {
@@ -401,7 +433,7 @@ object HZSocketControler {
             }
             case reason: HZActorReason => {
                 log_hzso_actor_debug("receive:HZActorReason=%s".format(reason))
-                actorStateSet = actorStateSet.map(as => if(as.actor == sender) HZActorState(as.actor, reason) else as)
+                actorStates.addReason(sender, reason)
             }
             case x => {
                 (nextReceiver orElse ({
@@ -413,18 +445,18 @@ object HZSocketControler {
         def receiveExiting: Actor.Receive = {
             case HZReqDelActor(a) => {
                 log_hzso_actor_debug("receiveExiting:HZReqDelActor(%s)".format(a))
-                actorStateSet = actorStateSet.filterNot(_.actor == a)
+                actorStates -= a
                 context.unwatch(a)
             }
             case reason: HZActorReason => {
                 log_hzso_actor_debug("receiveExiting:HZActorReason=%s".format(reason))
-                actorStateSet = actorStateSet.map(as => if(as.actor == sender) HZActorState(as.actor, reason) else as)
+                actorStates.addReason(sender, reason)
             }
             case Terminated(stopedActor) => {
                 log_hzso_actor_debug("receiveExiting:Terminated(%s)".format(stopedActor))
-                actorStateSet = actorStateSet.filterNot(_.actor == stopedActor)
-                log_hzso_actor_trace("receiveExiting:actorStateSet=%s".format(actorStateSet))
-                if(actorStateSet.isEmpty)
+                actorStates -= stopedActor
+                log_hzso_actor_trace("receiveExiting:actorStateSet=%s".format(actorStates))
+                if(actorStates.isEmpty)
                     exitNormaly(originReason,parent)
             }
             case x => log_hzso_actor_debug("receiveExiting:%s".format(x))

@@ -61,16 +61,15 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
             }
         }
 
-        private var actorStateSet = Set.empty[HZActorState]
         private var ioActorMap = Map.empty[ActorRef,HZSocketDescription]
         private val acceptActor = AccepterActor.start(serverSocket, hzSoConf.acceptTimeout, self)
-        actorStateSet += HZActorState(acceptActor)
+        private val actorStates = HZActorStates(acceptActor)
 
         def stopSocket1(reason: HZActorReason , stopedActorOpt: Option[ActorRef] = None) {
             log_hzso_actor_trace("stopSocket1(%s,%s)".format(reason,stopedActorOpt)) 
             stopedActorOpt match {
                 case Some(a) => {
-                    actorStateSet = actorStateSet.filterNot(_.actor == a)
+                    actorStates -= a
                     ioActorMap.get(a) match {
                         case Some(so_desc) => {
                             log_hzso_actor_trace("stopSocket1:ioActorMap.get:Some(%s)".format(so_desc)) 
@@ -92,15 +91,15 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
             serverSocket.close()
             if(reason != null) originReason = reason
             stopedActorOpt match {
-                case Some(a) => actorStateSet = actorStateSet.filterNot(_.actor == a)
+                case Some(a) => actorStates -= a
                 case None => 
             }
-            if(actorStateSet.isEmpty) {
-                log_hzso_actor_trace("stopServer1:actorStateSet.isEmpty==true")
+            if(actorStates.isEmpty) {
+                log_hzso_actor_trace("stopServer1:actorStates.isEmpty==true")
                 exitNormaly(originReason,parent)
             } else {
-                log_hzso_actor_trace("stopServer1:actorStateSet.size=%d".format(actorStateSet.size))
-                actorStateSet.foreach(_.actor ! HZStop())
+                log_hzso_actor_trace("stopServer1:actorStates.size=%d".format(actorStates.size))
+                actorStates.foreach(_.actor ! HZStop())
                 context.become(receiveExiting)
             }
         }
@@ -141,7 +140,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                         }
                     }
                     val ioActor = SocketIOActor.start(so, staticDataBuilder, self)(nextReceive)
-                    actorStateSet += HZActorState(ioActor)
+                    actorStates += ioActor
                     val so_desc = HZSocketDescription(so)
                     ioActorMap += (ioActor -> so_desc)
                     parent ! HZIOStart(so_desc, ioActor, self)
@@ -167,7 +166,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
             }
             case reason: HZActorReason => {
                 log_hzso_actor_debug("receive:HZActorReason=%s".format(reason))
-                actorStateSet = actorStateSet.map(as => if(as.actor == sender) HZActorState(as.actor, reason) else as)
+                actorStates.addReason(sender, reason)
             }
             case x => {
                 log_hzso_actor_debug("receive:%s".format(x))
@@ -177,8 +176,8 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
         def receiveExiting: Actor.Receive = {
             case Terminated(stopedActor: Actor) => {
                 log_hzso_actor_debug("receiveExiting:Terminated(%s)".format(stopedActor))
-                actorStateSet = actorStateSet.filterNot(_.actor == stopedActor)
-                if(actorStateSet.isEmpty)
+                actorStates -= stopedActor
+                if(actorStates.isEmpty)
                     exitNormaly(originReason,parent)
             }
             case x => log_hzso_actor_debug("loopExiting:%s".format(x))
