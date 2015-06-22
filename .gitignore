@@ -13,6 +13,8 @@ HZEchoServer/
 HZMultiClient/
 HZEchoBindClient/
 
+application.conf
+
 #original -->
 
 *.class
