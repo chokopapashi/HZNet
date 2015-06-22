@@ -132,7 +132,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 log_hzso_actor_debug("receive:HZStopWithReason(%s)".format(reason))
                 stopClient1(HZCommandStopedWithReason(reason))
             }
-            case Terminated(stopedActor: Actor) => {
+            case Terminated(stopedActor: ActorRef) => {
                 log_hzso_actor_debug("receive:Terminated(%s)".format(stopedActor))
                 stopClient1(HZNullReason, Some(stopedActor))
             }
@@ -146,7 +146,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
         }
 
         def receiveExiting: Actor.Receive = {
-            case Terminated(stopedActor: Actor) => {
+            case Terminated(stopedActor: ActorRef) => {
                 log_hzso_actor_debug("receiveExiting:Terminated(%s)".format(stopedActor))
                 stopClient1(HZNullReason, Some(stopedActor))
                 actorStates -= stopedActor

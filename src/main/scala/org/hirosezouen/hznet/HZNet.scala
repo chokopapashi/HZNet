@@ -427,7 +427,7 @@ object HZSocketControler {
                 log_hzso_actor_debug("receive:HZStopWithReason(%s)".format(reason))
                 stopIO1(HZCommandStopedWithReason(reason))
             }
-            case Terminated(stopedActor) => {
+            case Terminated(stopedActor: ActorRef) => {
                 log_hzso_actor_debug("receive:Terminated(%s)".format(stopedActor))
                 stopIO1(HZNullReason, Some(stopedActor))
             }
@@ -452,7 +452,7 @@ object HZSocketControler {
                 log_hzso_actor_debug("receiveExiting:HZActorReason=%s".format(reason))
                 actorStates.addReason(sender, reason)
             }
-            case Terminated(stopedActor) => {
+            case Terminated(stopedActor: ActorRef) => {
                 log_hzso_actor_debug("receiveExiting:Terminated(%s)".format(stopedActor))
                 actorStates -= stopedActor
                 log_hzso_actor_trace("receiveExiting:actorStateSet=%s".format(actorStates))
