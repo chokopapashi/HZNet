@@ -106,7 +106,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
 
         def isConnectionFull(): Boolean = {
             hzSoConf.maxConn match {
-                case 0 => true
+                case 0 => false
                 case x if(ioActorMap.size < x) => true
                 case _ => false
             }
@@ -125,7 +125,9 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                 log_hzso_actor_debug("receive:HZAccepted(%s)".format(so))
                 if(isConnectionFull()) {
                     log_hzso_actor_error("The number of client connections has reached the upper limit.")
-                    log_hzso_actor_trace("receive:HZAccepted:isConnectionFull = true")
+                    log_hzso_actor_trace(("receive:HZAccepted:isConnectionFull = true:" +
+                                          "hzSoConf.maxConn=%d,ioActorMap.size=%d").format(
+                                          hzSoConf.maxConn, ioActorMap.size))
                     so.close()
                 } else {
                     log_hzso_actor_trace("receive:HZAccepted:isConnectionFull = false")
