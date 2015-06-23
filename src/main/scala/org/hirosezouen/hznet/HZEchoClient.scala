@@ -62,10 +62,10 @@ object HZEchoClient {
 
         val quit_r = "(?i)^q$".r
         val inputActor = InputActor.start(System.in) {
-            case (quit_r(),ia_self,ia_context) => {
-                ia_context.stop(ia_self)
+            case quit_r() => {
+                System.in.close
             }
-            case (s,_,_) => {
+            case s => {
                 soClient ! HZDataSending(s.getBytes)
             }
         }
