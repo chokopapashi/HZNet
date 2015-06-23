@@ -130,40 +130,6 @@ object SocketIOStaticDataBuilder extends SocketIOStaticDataBuilder {
 
 case class ReceiveLoop()
 
-case class HZActorState(actor: ActorRef, stopReason: HZActorReason = HZNullReason)
-case class HZActorStates(var actorStateSet: Set[HZActorState] = Set.empty) {
-//    import HZActorStates._
-
-    def add(as: HZActorState): Unit = actorStateSet += as
-    def delete(a: ActorRef): Unit = actorStateSet = actorStateSet.filterNot(_.actor == a)
-    def add(a: ActorRef): Unit = add(HZActorState(a))
-    def addReason(a: ActorRef, reason: HZActorReason): Unit = 
-        actorStateSet = actorStateSet.map(as => if(as.actor == a) HZActorState(a, reason) else as)
-    def +=(as: HZActorState): Unit = add(as)
-    def +=(a: ActorRef): Unit = add(a)
-//    def ++=(assw: HZActorStateSeqWrap): Unit = actorStateSet ++= assw.seq
-//    def ++=(actorsw: ActorRefSeqWrap): Unit = actorStateSet ++= actorsw.seq.map(HZActorState(_))
-    def ++=(actors: Seq[ActorRef]): Unit = actorStateSet ++= actors.map(HZActorState(_))
-    def +=(actors: ActorRef*): Unit = this.++=(actors)
-    def -=(a: ActorRef): Unit = delete(a)
-    def contains(a: ActorRef): Boolean = actorStateSet.find(_.actor == a).isEmpty
-    def isEmpty: Boolean = actorStateSet.isEmpty
-    def nonEmpty: Boolean = actorStateSet.nonEmpty
-    def size: Int = actorStateSet.size
-
-    def foreach(f: (HZActorState) => Unit): Unit = actorStateSet.foreach(f(_))
-}
-object HZActorStates {
-//    case class HZActorStateSeqWrap(seq: Seq[HZActorState])
-//    case class ActorRefSeqWrap(seq: Seq[ActorRef])
-//    implicit def seq2HZActorStateSeqWrap(seq: Seq[HZActorState]) = HZActorStateSeqWrap(seq)
-//    implicit def seq2ActorRefSeqWrap(seq: Seq[ActorRef]) = ActorRefSeqWrap(seq)
-
-//    def apply(assw: HZActorStateSeqWrap): HZActorStates = HZActorStates(Set(assw.seq: _*))
-//    def apply(actorsw: ActorRefSeqWrap): HZActorStates = HZActorStates(Set(actorsw.seq.map(HZActorState(_)): _*))
-    def apply(actors: ActorRef*): HZActorStates = HZActorStates(Set(actors.map(HZActorState(_)): _*))
-}
-
 /* ======================================================================== */
 
 object HZSocketControler {
