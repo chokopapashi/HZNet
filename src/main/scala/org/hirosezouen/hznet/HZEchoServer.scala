@@ -47,7 +47,7 @@ object HZEchoServer {
         }
 
         private val actorStates = HZActorStates()
-/*
+
         private val soServer =
             startSocketServer(
                 HZSoServerConf(port),
@@ -67,7 +67,7 @@ object HZEchoServer {
         }
         context.watch(soServer)
         actorStates += soServer
-*/
+
         val quit_r = "(?i)^q$".r
         val inputActor = InputActor.start(System.in) {
             case quit_r() => {
