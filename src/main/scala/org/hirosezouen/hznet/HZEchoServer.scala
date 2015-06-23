@@ -2,16 +2,30 @@
  * Copyright (c) 2013, Hidekatsu Hirose
  * Copyright (c) 2013, Hirose-Zouen
  * This file is subject to the terms and conditions defined in
- * This file is subject to the terms and conditions defined in
  * file 'LICENSE.txt', which is part of this source code package.
  */
 
 package org.hirosezouen.hznet
 
-import scala.actors._
-import scala.actors.Actor._
+import java.io.File
 
-import org.hirosezouen.hzutil.HZActor._
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.util.control.Exception._
+
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.ActorRefFactory
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.actor.Terminated
+import akka.actor.OneForOneStrategy
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.SupervisorStrategy.Escalate
+
+import com.typesafe.config.ConfigFactory
+
+import org.hirosezouen.hzactor.HZActor._
 import org.hirosezouen.hzutil.HZIO._
 import org.hirosezouen.hzutil.HZLog._
 
@@ -19,6 +33,90 @@ import HZSocketServer._
 
 object HZEchoServer {
     implicit val logger = getLogger(this.getClass.getName)
+
+    class MainActor(port: Int) extends Actor {
+        log_trace("MainActor")
+
+        override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries=1, withinTimeRange=1 minutes, loggingEnabled=true) {
+            case _: Exception => Stop
+            case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
+        }
+
+        override def preStart() {
+            super.preStart
+        }
+
+        private val actorStates = HZActorStates()
+
+        private val soServer =
+            startSocketServer(
+                HZSoServerConf(port),
+                SocketIOStaticDataBuilder,
+                self)
+        {
+            case (_, HZIOStart(so_desc,_,_)) => {
+                log_info("Client connected:%s".format(so_desc))
+            }
+            case (_, HZDataReceived(receivedData)) => {
+                log_info(new String(receivedData))
+                self ! HZDataSending(receivedData)
+            }
+            case (_, HZIOStop(_,reason,_,_)) => {
+                log_info("Connection closed:%s".format(reason))
+            }
+        }
+        context.watch(soServer)
+        actorStates += soServer
+
+        val quit_r = "(?i)^q$".r
+        val inputActor = InputActor.start(System.in) {
+            case (quit_r(),ia_self,ia_context) => {
+//                System.in.close
+                ia_context.stop(ia_self)
+            }
+        }
+        context.watch(inputActor)
+        actorStates += inputActor
+
+        def receive = {
+            case Terminated(stopedActor: Actor) => {
+                log_trace("MainActor:receive:Terminated(%s)".format(stopedActor))
+                actorStates -= stopedActor
+                if(actorStates.isEmpty) {
+                    log_trace("MainActor:receive:Terminated:actorStates.isEmpty==true")
+                    context.system.shutdown()
+                } else {
+                    log_trace("MainActor:receive:Terminated:actorStates.isEmpty==false")
+                    actorStates.foreach(_.actor ! HZStop())
+                    System.in.close()   /* InputAcotorはclose()の例外で停止する */
+                    context.become(receiveExiting)
+                }
+            }
+            case reason: HZActorReason => {
+                log_debug("MainActor:receive:HZActorReason=%s".format(reason))
+                actorStates.addReason(sender, reason)
+            }
+        }
+
+        def receiveExiting: Actor.Receive = {
+            case Terminated(stopedActor: Actor) => {
+                log_trace("MainActor:receiveExiting:Terminated(%s)".format(stopedActor))
+                actorStates -= stopedActor
+                if(actorStates.isEmpty)
+                    context.system.shutdown()
+            }
+            case reason: HZActorReason => {
+                log_debug("MainActor:receiveExiting:HZActorReason=%s".format(reason))
+                actorStates.addReason(sender, reason)
+            }
+        }
+    }
+    object MainActor {
+        def start(port: Int)(implicit system: ActorRefFactory): ActorRef = {
+            log_debug("MainActor:Start")
+            system.actorOf(Props(new MainActor(port)))
+        }
+    }
 
     def main(args: Array[String]) {
         log_info("HZEchoServer:Start")
@@ -30,63 +128,10 @@ object HZEchoServer {
             args(0).toInt
         }
 
-        var actors: Set[Actor] = Set.empty
-
-        actors += startInputActor(System.in) {
-            case "q" | "Q" => {
-                exit(HZNormalStoped())
-            }
-        }
-
-        actors += startSocketServer(HZSoServerConf(port),
-                                    SocketIOStaticDataBuilder,
-                                    self) {
-            case (_, HZIOStart(so_desc,_,_)) => {
-                log_info("Client connected:%s".format(so_desc))
-            }
-            case (_, HZDataReceived(receivedData)) => {
-                log_info(new String(receivedData))
-                self ! HZDataSending(receivedData)
-            }
-            case (_, HZIOStop(_,reason,_,_,_)) => {
-                log_info("Connection closed:%s".format(reason))
-            }
-        }
-
-        self.trapExit = true
-        var loopFlag = true
-        var mf: () => Unit = null
-        
-        def mainFun1() = receive {
-            case Exit(stopedActor: Actor, reason) => {
-                log_debug("main:mainFun1:Exit(%s,%s)".format(stopedActor,reason))
-                actors -= stopedActor
-                if(actors.isEmpty) {
-                    loopFlag = false
-                } else {
-                    actors.foreach(_ ! HZStop())
-                    System.in.close()   /* InputAcotorはclose()の例外で停止する */
-                    mf = mainFun2
-                }
-            }
-        }
-
-        def mainFun2() = receive {
-            case Exit(stopedActor: Actor, reason) => {
-                log_debug("main:mainFun2:Exit(%s,%s)".format(stopedActor,reason))
-                actors -= stopedActor
-                if(actors.isEmpty)
-                    loopFlag = false
-            }
-        }
-
-        /*
-         * メイン処理
-         */
-        mf = mainFun1
-        while(loopFlag) {
-            mf()
-        }
+        val config = ConfigFactory.parseFile(new File("../application.conf"))
+        implicit val system = ActorSystem("HZEchoServer", config)
+        MainActor.start(port)
+        system.awaitTermination()
 
         log_info("HZEchoServer:end")
     }
