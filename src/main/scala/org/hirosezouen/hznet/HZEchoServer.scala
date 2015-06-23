@@ -78,7 +78,7 @@ object HZEchoServer {
         actorStates += inputActor
 
         def receive = {
-            case Terminated(stopedActor: Actor) => {
+            case Terminated(stopedActor: ActorRef) => {
                 log_trace("MainActor:receive:Terminated(%s)".format(stopedActor))
                 actorStates -= stopedActor
                 if(actorStates.isEmpty) {
@@ -98,7 +98,7 @@ object HZEchoServer {
         }
 
         def receiveExiting: Actor.Receive = {
-            case Terminated(stopedActor: Actor) => {
+            case Terminated(stopedActor: ActorRef) => {
                 log_trace("MainActor:receiveExiting:Terminated(%s)".format(stopedActor))
                 actorStates -= stopedActor
                 if(actorStates.isEmpty)
