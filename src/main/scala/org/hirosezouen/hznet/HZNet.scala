@@ -328,11 +328,9 @@ object HZSocketControler {
 
         private val out = new BufferedOutputStream(socket.getOutputStream)
         private val senderActor = SenderActor.start(out, so_desc, self)
-        context.watch(senderActor)
 
         private val in = new BufferedInputStream(socket.getInputStream)
         private val receiverActor = ReceiverActor.start(in, so_desc, self)
-        context.watch(receiverActor)
 
         private val actorStates = HZActorStates(receiverActor, senderActor)
 
@@ -378,12 +376,10 @@ object HZSocketControler {
             case HZReqAddActor(a) => {
                 log_hzso_actor_debug("receive:HZReqAddActor(%s)".format(a))
                 actorStates += a
-                context.watch(a)
             }
             case HZReqDelActor(a) => {
                 log_hzso_actor_debug("receive:HZReqDelActor(%s)".format(a))
                 actorStates -= a
-                context.unwatch(a)
             }
             case HZStop() => {
                 log_hzso_actor_debug("receive:HZStop")
@@ -412,7 +408,6 @@ object HZSocketControler {
             case HZReqDelActor(a) => {
                 log_hzso_actor_debug("receiveExiting:HZReqDelActor(%s)".format(a))
                 actorStates -= a
-                context.unwatch(a)
             }
             case reason: HZActorReason => {
                 log_hzso_actor_debug("receiveExiting:HZActorReason=%s".format(reason))
