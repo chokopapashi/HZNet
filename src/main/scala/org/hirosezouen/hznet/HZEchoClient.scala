@@ -57,7 +57,6 @@ object HZEchoClient {
                 log_info(new String(receivedData))
             }
         }
-        context.watch(soClient)
         actorStates += soClient
 
         val quit_r = "(?i)^q$".r
@@ -69,7 +68,6 @@ object HZEchoClient {
                 soClient ! HZDataSending(s.getBytes)
             }
         }
-        context.watch(inputActor)
         actorStates += inputActor
 
         def receive = {

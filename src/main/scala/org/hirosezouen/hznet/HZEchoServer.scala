@@ -65,7 +65,6 @@ object HZEchoServer {
                 log_info("Connection closed:%s".format(reason))
             }
         }
-        context.watch(soServer)
         actorStates += soServer
 
         val quit_r = "(?i)^q$".r
@@ -74,7 +73,6 @@ object HZEchoServer {
                 System.in.close
             }
         }
-        context.watch(inputActor)
         actorStates += inputActor
 
         def receive = {
