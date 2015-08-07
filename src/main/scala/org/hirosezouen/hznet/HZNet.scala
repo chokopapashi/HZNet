@@ -59,9 +59,9 @@ case class HZIOStart(so_desc: HZSocketDescription, ioActor: ActorRef, socketActo
 case class HZIOStop(so_desc: HZSocketDescription, reason: AnyRef, ioActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
 case class HZSocketStop(so_desc: HZSocketDescription, reason: AnyRef, stopedActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
 
-case class HZConnectTimeout() extends HZActorReason
-case class HZSocketDisabled() extends HZActorReason
-case class HZPeerClosed() extends HZActorReason
+case class HZConnectTimeout()(implicit val sender: ActorRef) extends HZActorReason
+case class HZSocketDisabled()(implicit val sender: ActorRef) extends HZActorReason
+case class HZPeerClosed()(implicit val sender: ActorRef) extends HZActorReason
 
 case class HZSoClientConf(endPoint: InetSocketAddress,
                           localSocketAddressOpt: Option[InetSocketAddress],
