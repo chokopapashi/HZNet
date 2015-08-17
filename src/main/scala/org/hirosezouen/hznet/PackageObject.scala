@@ -8,9 +8,12 @@
 
 package org.hirosezouen
 
-import java.nio.ByteBuffer
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
+import java.nio.ByteBuffer
+
+import scala.collection.JavaConversions._
 
 package object hznet {
     def macAddressString2Bytes(macString: String): Array[Byte] = {
