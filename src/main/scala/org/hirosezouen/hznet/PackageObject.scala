@@ -23,6 +23,17 @@ package object hznet {
         macBytes.map(b => f"$b%02X").mkString(":")
     }
 
+    def getNetworkInterfaces: List[NetworkInterface] = NetworkInterface.getNetworkInterfaces().toList
+    def getNetworkInterfaceByname(name: String): Option[NetworkInterface] = {
+        val networkinterface = NetworkInterface.getByName(name)
+        if(networkinterface == null) None
+        else Some(networkinterface)
+    }
+    def getNetworkInterfaceAddresses(name: String): List[InetAddress] = getNetworkInterfaceByname(name) match {
+        case Some(networkinterface) => networkinterface.getInetAddresses().toList
+        case None => List.empty[InetAddress]
+    }
+
     implicit class InetAddressString2Int(s: String) {
         def toInetAddressInt(): Int = InetAddress.getByName(s).toInetAddressInt
     }
