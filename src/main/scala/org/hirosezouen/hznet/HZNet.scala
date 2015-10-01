@@ -152,8 +152,9 @@ object HZSocketControler {
         implicit val actorName = ActorName("Sender", self, so_desc)
 
         override def preStart() {
-            log_hzso_actor_debug()
+            log_hzso_actor_trace("preStart")
         }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def sendData(sendingData: Array[Byte], out: BufferedOutputStream)(implicit actorName: ActorName): Option[Throwable] = {
             log_hzso_actor_trace("%s:sendData(%s,%s)".format(so_desc,sendingData,out))
@@ -210,9 +211,10 @@ object HZSocketControler {
         implicit val actorName = ActorName("Receiver", self, so_desc)
 
         override def preStart() {
-            log_hzso_actor_debug()
+            log_hzso_actor_trace("preStart")
             self ! ReceiveLoop()
         }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         private val readBuff = new Array[Byte](4096)
         def receiveData(in: BufferedInputStream)(implicit actorName: ActorName): Either[Throwable,Option[Array[Byte]]] = {
@@ -231,8 +233,7 @@ object HZSocketControler {
                         val th = new IllegalArgumentException("0=in.read()")
                         log_hzso_actor_trace("receiveData:in.read",th) 
                         Left(th)
-                    } else
-                        Right(Some(readBuff.take(c)))
+                    } else Right(Some(readBuff.take(c)))
                 }
                 case Left(th) => {
                     log_hzso_actor_debug("receiveData:in.read:%s".format(th)) 
@@ -255,6 +256,7 @@ object HZSocketControler {
                                 log_hzso_actor_debug("receiveData:Right(%s)".format(receivedData))
                                 log_hzso_actor_trace("receiveData:Right:%n%s".format(hexDump(receivedData)))
                                 parent ! HZDataReceived(receivedData)
+                                self ! ReceiveLoop()
                             }
                             case None => {
                                 exitNormaly(HZPeerClosed(),parent)
@@ -327,16 +329,19 @@ object HZSocketControler {
         staticData.initialize
 
         private val out = new BufferedOutputStream(socket.getOutputStream)
-        private val senderActor = SenderActor.start(out, so_desc, self)
+        private lazy val senderActor = SenderActor.start(out, so_desc, self)
 
         private val in = new BufferedInputStream(socket.getInputStream)
-        private val receiverActor = ReceiverActor.start(in, so_desc, self)
+        private lazy val receiverActor = ReceiverActor.start(in, so_desc, self)
 
-        private val actorStates = HZActorStates(receiverActor, senderActor)
+        private val actorStates = HZActorStates()
 
         override def preStart() {
-            log_hzso_actor_debug()
+            log_hzso_actor_trace("preStart")
+
+            actorStates += (receiverActor, senderActor)
         }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
         
         var originReason: HZActorReason = null
         def stopIO1(reason: HZActorReason, stopedActorOpt: Option[ActorRef] = None) {
@@ -471,9 +476,10 @@ object HZSocketControler {
         }
 
         override def preStart() {
-            log_hzso_actor_debug()
+            log_hzso_actor_trace("preStart")
             self ! ReceiveLoop()
         }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def receive = {
             case ReceiveLoop() => {
@@ -541,9 +547,10 @@ object HZSocketControler {
         }
 
         override def preStart() {
-            log_hzso_actor_debug()
+            log_hzso_actor_trace("preStart")
             self ! ReceiveLoop()
         }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def receive = {
             case ReceiveLoop() => {

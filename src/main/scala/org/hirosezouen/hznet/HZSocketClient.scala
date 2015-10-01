@@ -41,20 +41,18 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
             case _: Exception => Stop
             case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
         }
-
-        override def preStart() {
-            log_hzso_actor_debug()
-        }
-
         private var so_desc: HZSocketDescription = null
-        private var connectActor: ActorRef = null
         private var ioActor: ActorRef = null
         private val actorStates = HZActorStates()
 
-        context.become(receiveConnecting)
-        connectActor = ConnectorActor.start(hzSoConf.endPoint, hzSoConf.localSocketAddressOpt,
-                                            hzSoConf.connTimeout, hzSoConf.reuseAddress, self)
-        actorStates += connectActor
+        override def preStart() {
+            log_hzso_actor_trace("preStart")
+
+            actorStates += ConnectorActor.start(hzSoConf.endPoint, hzSoConf.localSocketAddressOpt,
+                                                hzSoConf.connTimeout, hzSoConf.reuseAddress, self)
+            context.become(receiveConnecting)
+        }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         var originReason: HZActorReason = null
         def stopClient1(reason: HZActorReason, stopedActorOpt: Option[ActorRef] = None) {
@@ -84,11 +82,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
             case HZEstablished(so) => {
                 log_hzso_actor_debug("receiveConnecting:HZEstablished(%s)".format(so))
                 so.setSoTimeout(hzSoConf.recvTimeout)
-                ioActor = SocketIOActor.start(so, staticDataBuilder, self)(nextReceive)
-                actorStates += ioActor
                 so_desc = HZSocketDescription(so)
-                parent ! HZIOStart(so_desc, ioActor, self)
-                context.unbecome()
             }
             case HZStop() => {
                 log_hzso_actor_debug("receiveConnecting:HZStop")
@@ -98,15 +92,13 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 log_hzso_actor_debug("receiveConnecting:HZStopWithReason(%s)".format(reason))
                 stopClient1(HZCommandStopedWithReason(reason))
             }
-
             case Terminated(stopedActor: ActorRef) => {
                 log_hzso_actor_debug("receiveConnecting:Terminated(%s)".format(stopedActor))
-                if(connectActor == stopedActor) {
-                    actorStates -= stopedActor
-                    connectActor = null
-                } else {
-                    stopClient1(HZNullReason, Some(stopedActor))
-                }
+                actorStates -= stopedActor
+                ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder, self)(nextReceive)
+                actorStates += ioActor
+                parent ! HZIOStart(so_desc, ioActor, self)
+                context.unbecome()
             }
             case reason: HZActorReason => {
                 log_hzso_actor_debug("receiveConnecting:HZActorReason=%s".format(reason))

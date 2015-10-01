@@ -46,10 +46,6 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
             case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
         }
 
-        override def preStart() {
-            log_hzso_actor_debug()
-        }
-
         val serverSocket: ServerSocket = catching(classOf[IOException]) either {
             new ServerSocket(hzSoConf.port)
         } match {
@@ -62,8 +58,14 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
         }
 
         private var ioActorMap = Map.empty[ActorRef,HZSocketDescription]
-        private val acceptActor = AccepterActor.start(serverSocket, hzSoConf.acceptTimeout, self)
-        private val actorStates = HZActorStates(acceptActor)
+        private lazy val acceptActor = AccepterActor.start(serverSocket, hzSoConf.acceptTimeout, self)
+        private val actorStates = HZActorStates()
+
+        override def preStart() {
+            log_hzso_actor_trace("preStart")
+            actorStates += acceptActor
+        }
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def stopSocket1(reason: HZActorReason , stopedActorOpt: Option[ActorRef] = None) {
             log_hzso_actor_trace("stopSocket1(%s,%s)".format(reason,stopedActorOpt)) 
