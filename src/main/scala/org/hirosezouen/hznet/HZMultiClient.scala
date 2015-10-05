@@ -2,13 +2,13 @@
  * Copyright (c) 2013, Hidekatsu Hirose
  * Copyright (c) 2013, Hirose-Zouen
  * This file is subject to the terms and conditions defined in
- * This file is subject to the terms and conditions defined in
  * file 'LICENSE.txt', which is part of this source code package.
  */
 
 package org.hirosezouen.hznet
 
 import java.io.File
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -21,6 +21,7 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.actor.Terminated
 import akka.actor.OneForOneStrategy
+import akka.actor.ReceiveTimeout
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.SupervisorStrategy.Escalate
 
@@ -35,8 +36,33 @@ import HZSocketClient._
 object HZMultiClient {
     implicit val logger = getLogger(this.getClass.getName)
 
+    private val ioActorQueue = new ConcurrentLinkedQueue[ActorRef]()
+
+    class TimerActor(parent: ActorRef) extends Actor {
+        log_trace(self.toString)
+
+        context.setReceiveTimeout(1000 milliseconds)
+        var num = 0
+        def receive = {
+            case ReceiveTimeout => {
+                val ioActor = ioActorQueue.poll
+                ioActor ! f"Message Number ($num%d)."
+                ioActorQueue.offer(ioActor)
+                num += 1
+            }
+            case HZStop() => exitNormaly(parent)
+
+        }
+    }
+    object TimerActor {
+        def start()(implicit parent: ActorRef, system: ActorRefFactory): ActorRef = {
+            log_trace(s"TimerActor:start($parent)")
+            system.actorOf(Props(new TimerActor(parent)), "TimerActor")
+        }
+    }
+
     class MainActor(ip: String, port: Int, maxClient: Int) extends Actor {
-        log_trace("MainActor")
+        log_trace(self.toString)
 
         override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries=1, withinTimeRange=1 minutes, loggingEnabled=true) {
             case _: Exception => Stop
@@ -46,11 +72,12 @@ object HZMultiClient {
         private val actorStates = HZActorStates()
 
         override def preStart() {
-            log_hzso_actor_trace("preStart")
+            log_trace("preStart")
 
-            actorStates += startInputActor(System.in) {
-                case "q" | "Q" => exit(HZNormalStoped())
-                case s         => actors.foreach(_ ! HZDataSending(s.getBytes) )
+            val quit_r = "(?i)^q$".r
+            actorStates += InputActor.start(System.in) {
+                case quit_r() => System.in.close
+                case s        => actorStates.foreach(_.actor ! HZDataSending(s.getBytes))
             }
 
             case class MultiClientSocketIOStaticData(num: Int) extends SocketIOStaticData {
@@ -58,42 +85,45 @@ object HZMultiClient {
                 def cleanUp() {}
             }
             case class MultiClientSocketIOStaticDataBuilder(num: Int) extends SocketIOStaticDataBuilder {
-                def build(): SocketIOStaticData = {
-                    MultiClientSocketIOStaticData(num)
-                }
+                def build(): SocketIOStaticData = MultiClientSocketIOStaticData(num)
             }
 
-            for(i <- 0 to (maxClient-1)) {
+//            for(i <- 0 to (maxClient-1)) {
+                val i = 0
                 actorStates += startSocketClient(HZSoClientConf(ip,port,10000,0,false),
                                                  MultiClientSocketIOStaticDataBuilder(i),
                                                  self)
                 {
-                    case (staticData: MultiClientSocketIOStaticData, HZEstablished(_,_)) => {
-                        clientArray(staticData.num) = staticData.ioActor
+                    case (staticData: MultiClientSocketIOStaticData, HZEstablished(_)) => {
+                        ioActorQueue.offer(staticData.ioActor)
                     }
-                    case (_,s: String) => {
-                        self ! HZDataSending(s.getBytes)
+                    case (staticData: MultiClientSocketIOStaticData, s: String) => {
+                        self ! HZDataSending(f"SocketClient(${self.toString})(${staticData.num}%d)($s)".getBytes)
                     }
                     case (_,HZDataReceived(receivedData)) => {
                         log_info(new String(receivedData))
                     }
                 }
-            }
+//            }
+
+//            actorStates += TimerActor.start()
         }
         override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
         
         def receive = {
             case Terminated(stopedActor: ActorRef) => {
                 log_trace(s"MainActor:receive:Terminated($stopedActor)")
+                actorStates -= stopedActor
                 if(actorStates.isEmpty) {
                     log_trace("MainActor:receive:Terminated:actorStates.isEmpty==true")
                     context.system.shutdown()
                 } else {
                     log_trace("MainActor:receive:Terminated:actorStates.isEmpty==false")
                     actorStates.foreach(_.actor ! HZStop())
-                    System.in.close()   /* InputAcotorはclose()の例外で停止する */
+                    System.in.close()   /* stop InputAcotor by exception which throw as closing stream. */
                     context.become(receiveExiting)
                 }
+            }
             case reason: HZActorReason => {
                 log_trace(s"MainActor:receive:HZActorReason=$reason")
                 actorStates.addReason(sender, reason)
@@ -117,10 +147,9 @@ object HZMultiClient {
     object MainActor {
         def start(ip: String, port: Int, maxClient: Int)(implicit system: ActorRefFactory): ActorRef = {
             log_trace("MainActor:Start")
-            system.actorOf(Props(new MainActor(ip, port)))
+            system.actorOf(Props(new MainActor(ip, port, maxClient)), "MainActor")
         }
     }
-
 
     def main(args: Array[String]) {
         log_info("HZMultiClient:Start")
@@ -147,42 +176,12 @@ object HZMultiClient {
             }
         }
 
-        var actors = Set.empty[Actor]
-        var clientArray = new Array[Actor](maxClient)
+        val config = ConfigFactory.parseFile(new File("application.conf"))
+        implicit val system = ActorSystem("HZEchoClient", config)
+        MainActor.start(ip, port, maxClient)
+        system.awaitTermination()
 
-        case class SayMessage(msg: String)
-
-
-        val parent = self
-        actors += actor {
-            link(parent)
-            var count = 0
-            loop {
-                reactWithin(200) {
-                    case TIMEOUT => {
-                        if(clientArray(count) != null) {
-                            clientArray(count) ! "This is SocketClient %d".format(count)
-                        }
-                        count += 1
-                        if(maxClient <= count)
-                            count = 0
-                    }
-                    case HZStop() => exit(HZNormalStoped())
-                }
-            }
-        }
-
-
-
-        /*
-         * メイン処理
-         */
-        mf = mainFun1
-        while(loopFlag) {
-            mf()
-        }
-
-        log_info("HZMultiClient:end")
+        log_info("HZMultiClient:End")
     }
 }
 
