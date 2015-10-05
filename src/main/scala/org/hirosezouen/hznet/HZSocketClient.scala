@@ -100,9 +100,9 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 parent ! HZIOStart(so_desc, ioActor, self)
                 context.unbecome()
             }
-            case reason: HZActorReason => {
-                log_hzso_actor_debug("receiveConnecting:HZActorReason=%s".format(reason))
-                actorStates.addReason(sender, reason)
+            case reason: HZActorStoped => {
+                log_hzso_actor_debug("receiveConnecting:HZActorStoped=%s".format(reason))
+                stopClient1(reason, Some(sender))
             }
         }
 
