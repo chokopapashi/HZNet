@@ -80,6 +80,10 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
 
         def receiveConnecting: Actor.Receive = {
             case HZEstablished(so) => {
+                /*
+                 *  Only save the acquired Socket here.
+                 *  SocketIOActor starts when Terminated message of ConnectorActor is received.
+                 */
                 log_hzso_actor_debug("receiveConnecting:HZEstablished(%s)".format(so))
                 so.setSoTimeout(hzSoConf.recvTimeout)
                 so_desc = HZSocketDescription(so)
@@ -93,6 +97,10 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 stopClient1(HZCommandStopedWithReason(reason))
             }
             case Terminated(stopedActor: ActorRef) => {
+                /*
+                 * receive this message just followed by HZEstablished.
+                 * Hence, Sender is ConnectorActor only.
+                 */
                 log_hzso_actor_debug("receiveConnecting:Terminated(%s)".format(stopedActor))
                 actorStates -= stopedActor
                 ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder, self)(nextReceive)
@@ -101,6 +109,10 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 context.unbecome()
             }
             case reason: HZActorStoped => {
+                /*
+                 * So the completion of connecting is only received HZEstablished,
+                 * receiving any other reasons is treated an error. Stop ConnectorActor.
+                 */
                 log_hzso_actor_debug("receiveConnecting:HZActorStoped=%s".format(reason))
                 stopClient1(reason, Some(sender))
             }
