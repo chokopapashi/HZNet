@@ -92,7 +92,7 @@ object HZMultiClient {
                 val i = 0
                 actorStates += startSocketClient(HZSoClientConf(ip,port,10000,0,false),
                                                  MultiClientSocketIOStaticDataBuilder(i),
-                                                 self)
+                                                 "MultiClient")
                 {
                     case (staticData: MultiClientSocketIOStaticData, HZEstablished(_)) => {
                         ioActorQueue.offer(staticData.ioActor)
