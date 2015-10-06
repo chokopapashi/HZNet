@@ -30,8 +30,8 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
     import HZSocketControler.{logger => _, _}
     import hzSoConf._
 
-    class SocketClientActor(staticDataBuilder: SocketIOStaticDataBuilder, parent: ActorRef,
-                            nextReceive: NextReceiver) extends Actor
+    class SocketClientActor(staticDataBuilder: SocketIOStaticDataBuilder, name: String,
+                            parent: ActorRef, nextReceive: NextReceiver) extends Actor
     {
         log_trace("SocketClientActor(%s,%s)".format(staticDataBuilder,parent))
 
@@ -169,12 +169,12 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
     }
     object SocketClientActor {
         def start(staticDataBuilder: SocketIOStaticDataBuilder,
-                  parent: ActorRef)
+                  name: String = "SocketClientActor")
                  (nextBody: NextReceiver)
-                 (implicit context: ActorRefFactory): ActorRef
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("SocketClientActor:start(%s,%s)".format(staticDataBuilder,parent))
-            context.actorOf(Props(new SocketClientActor(staticDataBuilder,parent,nextBody)), "SocketClientActor")
+            log_debug("SocketClientActor:start(%s,%s)()(%s)".format(staticDataBuilder,name,parent))
+            context.actorOf(Props(new SocketClientActor(staticDataBuilder, name, parent,nextBody)), name)
         }
     }
 }
@@ -186,12 +186,12 @@ object HZSocketClient {
 
     def startSocketClient(hzSoConf: HZSoClientConf,
                           staticDataBuilder: SocketIOStaticDataBuilder,
-                          parent: ActorRef)
+                          name:String = "SocketClientActor")
                          (nextBody: NextReceiver)
-                         (implicit context: ActorRefFactory): ActorRef
+                         (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
     = {
-        log_debug("startSocketClient(%s,%s,%s)".format(hzSoConf,staticDataBuilder,parent))
-        HZSocketClient(hzSoConf).SocketClientActor.start(staticDataBuilder, parent)(nextBody)(context)
+        log_debug("startSocketClient(%s,%s,%s)()(%s)".format(hzSoConf,staticDataBuilder,name,parent))
+        HZSocketClient(hzSoConf).SocketClientActor.start(staticDataBuilder, name)(nextBody)(parent, context)
     }
 }
 

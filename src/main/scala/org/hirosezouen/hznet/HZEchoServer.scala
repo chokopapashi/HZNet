@@ -42,38 +42,35 @@ object HZEchoServer {
             case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
         }
 
-        override def preStart() {
-            super.preStart
-        }
-
         private val actorStates = HZActorStates()
 
-        private val soServer =
-            startSocketServer(
-                HZSoServerConf(port),
-                SocketIOStaticDataBuilder,
-                self)
-        {
-            case (_, HZIOStart(so_desc,_,_)) => {
-                log_info("Client connected:%s".format(so_desc))
-            }
-            case (_, HZDataReceived(receivedData)) => {
-                log_info(new String(receivedData))
-                self ! HZDataSending(receivedData)
-            }
-            case (_, HZIOStop(_,reason,_,_)) => {
-                log_info("Connection closed:%s".format(reason))
-            }
-        }
-        actorStates += soServer
+        override def preStart() {
+            log_trace("preStart")
 
-        val quit_r = "(?i)^q$".r
-        val inputActor = InputActor.start(System.in) {
-            case quit_r() => {
-                System.in.close
+            actorStates += startSocketServer(HZSoServerConf(port),
+                                             SocketIOStaticDataBuilder,
+                                             "EchoServer")
+            {
+                case (_, HZIOStart(so_desc,_,_)) => {
+                    log_info("Client connected:%s".format(so_desc))
+                }
+                case (_, HZDataReceived(receivedData)) => {
+                    log_info(new String(receivedData))
+                    self ! HZDataSending(receivedData)
+                }
+                case (_, HZIOStop(_,reason,_,_)) => {
+                    log_info("Connection closed:%s".format(reason))
+                }
+            }
+
+            val quit_r = "(?i)^q$".r
+            actorStates += InputActor.start(System.in) {
+                case quit_r() => {
+                    System.in.close
+                }
             }
         }
-        actorStates += inputActor
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def receive = {
             case Terminated(stopedActor: ActorRef) => {

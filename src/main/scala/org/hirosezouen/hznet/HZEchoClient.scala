@@ -44,31 +44,33 @@ object HZEchoClient {
 
         private val actorStates = HZActorStates()
 
-        private val soClient =
-            startSocketClient(
-                HZSoClientConf(ip,port,10000,0,false),
-                SocketIOStaticDataBuilder,
-                self)
-        {
-            case (_,s: String) => {
-                self ! HZDataSending(s.getBytes)
-            }
-            case (_,HZDataReceived(receivedData)) => {
-                log_info(new String(receivedData))
-            }
-        }
-        actorStates += soClient
+        override def preStart() {
+            log_trace("preStart")
 
-        val quit_r = "(?i)^q$".r
-        val inputActor = InputActor.start(System.in) {
-            case quit_r() => {
-                System.in.close
+            actorStates += startSocketClient(HZSoClientConf(ip,port,10000,0,false),
+                                             SocketIOStaticDataBuilder,
+                                             "EchoClient")
+            {
+                case (_,s: String) => {
+                    self ! HZDataSending(s.getBytes)
+                }
+                case (_,HZDataReceived(receivedData)) => {
+                    log_info(new String(receivedData))
+                }
             }
-            case s => {
-                soClient ! HZDataSending(s.getBytes)
+
+            val quit_r = "(?i)^q$".r
+            actorStates += InputActor.start(System.in) {
+                case quit_r() => {
+                    System.in.close
+                }
+                case s => {
+//                    soClient ! HZDataSending(s.getBytes)
+                    context.actorSelection("../EchoClient") ! HZDataSending(s.getBytes)
+                }
             }
         }
-        actorStates += inputActor
+        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def receive = {
             case Terminated(stopedActor: ActorRef) => {
@@ -106,7 +108,7 @@ object HZEchoClient {
     object MainActor {
         def start(ip: String, port: Int)(implicit system: ActorRefFactory): ActorRef = {
             log_debug("MainActor:Start")
-            system.actorOf(Props(new MainActor(ip, port)))
+            system.actorOf(Props(new MainActor(ip, port)), "MainActor")
         }
     }
 
