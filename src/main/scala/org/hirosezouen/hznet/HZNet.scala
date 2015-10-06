@@ -197,10 +197,10 @@ object HZSocketControler {
         }
     }
     object SenderActor {
-        def start(outStream: BufferedOutputStream, so_desc: HZSocketDescription, parent: ActorRef)
-                 (implicit context: ActorRefFactory): ActorRef
+        def start(outStream: BufferedOutputStream, so_desc: HZSocketDescription)
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_trace("SenderActor:start(%s,%s)".format(so_desc,parent))
+            log_trace("SenderActor:start(%s)(%s)".format(so_desc,parent))
             context.actorOf(Props(new SenderActor(outStream,so_desc,parent)), "Sender")
         }
     }
@@ -289,10 +289,10 @@ object HZSocketControler {
         }
     }
     object ReceiverActor {
-        def start(inStream: BufferedInputStream, so_desc: HZSocketDescription, parent: ActorRef)
-                 (implicit context: ActorRefFactory): ActorRef
+        def start(inStream: BufferedInputStream, so_desc: HZSocketDescription)
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("ReceiverActor:start(%s,%s)".format(so_desc,parent))
+            log_debug("ReceiverActor:start(%s)(%s)".format(so_desc,parent))
             context.actorOf(Props(new ReceiverActor(inStream,so_desc,parent)), "Receiver")
         }
     }
@@ -329,10 +329,10 @@ object HZSocketControler {
         staticData.initialize
 
         private val out = new BufferedOutputStream(socket.getOutputStream)
-        private lazy val senderActor = SenderActor.start(out, so_desc, self)
+        private lazy val senderActor = SenderActor.start(out, so_desc)
 
         private val in = new BufferedInputStream(socket.getInputStream)
-        private lazy val receiverActor = ReceiverActor.start(in, so_desc, self)
+        private lazy val receiverActor = ReceiverActor.start(in, so_desc)
 
         private val actorStates = HZActorStates()
 
@@ -429,11 +429,11 @@ object HZSocketControler {
         }
     }
     object SocketIOActor {
-        def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, parent: ActorRef)
+        def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder)
                  (nextReceiver: NextReceiver)
-                 (implicit context: ActorRefFactory): ActorRef
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("SocketIOActor:start(%s,%s,%s)".format(socket,staticDataBuilder,parent))
+            log_debug("SocketIOActor:start(%s,%s)()(%s)".format(socket,staticDataBuilder,parent))
             context.actorOf(Props(new SocketIOActor(socket, staticDataBuilder, parent, nextReceiver)), "SocketIO")
         }
     }
@@ -521,10 +521,10 @@ object HZSocketControler {
     }
     object ConnectorActor {
         def start(address: SocketAddress, localSocketAddressOpt: Option[InetSocketAddress],
-                  timeout: Int, reuseAddress: Boolean, parent: ActorRef)
-                 (implicit context: ActorRefFactory): ActorRef
+                  timeout: Int, reuseAddress: Boolean)
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("ConnectorActor:start(%s,%s,%d,%s,%s)".format(address,localSocketAddressOpt,timeout,reuseAddress,parent))
+            log_debug("ConnectorActor:start(%s,%s,%d,%s)(%s)".format(address,localSocketAddressOpt,timeout,reuseAddress,parent))
             context.actorOf(Props(new ConnectorActor(address,localSocketAddressOpt,timeout,reuseAddress,parent)), "Connector")
         }
     }
@@ -586,10 +586,10 @@ object HZSocketControler {
         }
     }
     object AccepterActor {
-        def start(serverSocket: ServerSocket, timeout: Int, parent: ActorRef)
-                 (implicit context: ActorRefFactory): ActorRef
+        def start(serverSocket: ServerSocket, timeout: Int)
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("AccepterActor.start(%s,%d,%s)".format(serverSocket,timeout,parent))
+            log_debug("AccepterActor.start(%s,%d)(%s)".format(serverSocket,timeout,parent))
             context.actorOf(Props(new AccepterActor(serverSocket,timeout,parent)), "Accepter")
         }
     }

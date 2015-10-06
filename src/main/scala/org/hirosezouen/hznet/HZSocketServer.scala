@@ -58,7 +58,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
         }
 
         private var ioActorMap = Map.empty[ActorRef,HZSocketDescription]
-        private lazy val acceptActor = AccepterActor.start(serverSocket, hzSoConf.acceptTimeout, self)
+        private lazy val acceptActor = AccepterActor.start(serverSocket, hzSoConf.acceptTimeout)
         private val actorStates = HZActorStates()
 
         override def preStart() {
@@ -143,7 +143,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                             stopServer1(HZErrorStoped(th))
                         }
                     }
-                    val ioActor = SocketIOActor.start(so, staticDataBuilder, self)(nextReceive)
+                    val ioActor = SocketIOActor.start(so, staticDataBuilder)(nextReceive)
                     actorStates += ioActor
                     val so_desc = HZSocketDescription(so)
                     ioActorMap += (ioActor -> so_desc)

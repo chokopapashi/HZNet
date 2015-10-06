@@ -49,7 +49,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
             log_hzso_actor_trace("preStart")
 
             actorStates += ConnectorActor.start(hzSoConf.endPoint, hzSoConf.localSocketAddressOpt,
-                                                hzSoConf.connTimeout, hzSoConf.reuseAddress, self)
+                                                hzSoConf.connTimeout, hzSoConf.reuseAddress)
             context.become(receiveConnecting)
         }
         override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
@@ -103,7 +103,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                  */
                 log_hzso_actor_debug("receiveConnecting:Terminated(%s)".format(stopedActor))
                 actorStates -= stopedActor
-                ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder, self)(nextReceive)
+                ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder)(nextReceive)
                 actorStates += ioActor
                 parent ! HZIOStart(so_desc, ioActor, self)
                 context.unbecome()
