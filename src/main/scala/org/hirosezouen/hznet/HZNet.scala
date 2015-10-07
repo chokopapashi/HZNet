@@ -200,7 +200,7 @@ object HZSocketControler {
         def start(outStream: BufferedOutputStream, so_desc: HZSocketDescription, name: String = "Sender")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_trace("SenderActor:start(%s,%s)(%s)".format(so_desc,name,parent))
+            log_trace("SenderActor:start(%s,%s)(%s,%s)".format(so_desc,name,parent,context))
             context.actorOf(Props(new SenderActor(outStream,so_desc,name,parent)), name)
         }
     }
@@ -292,7 +292,7 @@ object HZSocketControler {
         def start(inStream: BufferedInputStream, so_desc: HZSocketDescription, name: String = "Receiver")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("ReceiverActor:start(%s,%s)(%s)".format(so_desc,name,parent))
+            log_debug("ReceiverActor:start(%s,%s)(%s,%s)".format(so_desc,name,parent,context))
             context.actorOf(Props(new ReceiverActor(inStream,so_desc,name,parent)), name)
         }
     }
@@ -434,7 +434,7 @@ object HZSocketControler {
         def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String = "SocketIO")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("SocketIOActor:start(%s,%s,%s)(%s)".format(socket,staticDataBuilder,name,parent))
+            log_debug("SocketIOActor:start(%s,%s,%s)(%s,%s)".format(socket,staticDataBuilder,name,parent,context))
             context.actorOf(Props(new SocketIOActor(socket, staticDataBuilder, name, parent)), name)
         }
     }
@@ -525,7 +525,7 @@ object HZSocketControler {
                   timeout: Int, reuseAddress: Boolean, name: String = "Connector")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("ConnectorActor:start(%s,%s,%d,%s,%s)(%s)".format(address,localSocketAddressOpt,timeout,reuseAddress,name,parent))
+            log_debug("ConnectorActor:start(%s,%s,%d,%s,%s)(%s,%s)".format(address,localSocketAddressOpt,timeout,reuseAddress,name,parent,context))
             context.actorOf(Props(new ConnectorActor(address,localSocketAddressOpt,timeout,reuseAddress,name,parent)), name)
         }
     }
@@ -590,7 +590,7 @@ object HZSocketControler {
         def start(serverSocket: ServerSocket, timeout: Int, name: String = "Accepter")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("AccepterActor.start(%s,%d,%s)(%s)".format(serverSocket,timeout,name,parent))
+            log_debug("AccepterActor.start(%s,%d,%s)(%s,%s)".format(serverSocket,timeout,name,parent,context))
             context.actorOf(Props(new AccepterActor(serverSocket,timeout,name,parent)), name)
         }
     }
