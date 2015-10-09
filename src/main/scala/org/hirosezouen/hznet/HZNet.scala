@@ -136,15 +136,15 @@ object HZSocketControler {
     implicit val logger = getLogger(this.getClass.getName)
 
     case class ActorName(name: String, actor: ActorRef, so_desc: HZSocketDescription = HZSocketDescription(null)) {
-        override def toString: String = "[%s,%s,%s]".format(name,actor,so_desc)
+        override def toString: String = s"[$name,$actor,$so_desc]"
     }
     def log_hzso_actor_debug()(implicit actorName: ActorName) = log_debug(actorName.toString)
-    def log_hzso_actor_debug(msg: => String)(implicit actorName: ActorName) = log_debug("%s:%s".format(actorName,msg))
-    def log_hzso_actor_debug(msg: => String, th: Throwable)(implicit actorName: ActorName) = log_debug("%s:%s".format(actorName,msg),th)
+    def log_hzso_actor_debug(msg: => String)(implicit actorName: ActorName) = log_debug(s"$actorName:$msg")
+    def log_hzso_actor_debug(msg: => String, th: Throwable)(implicit actorName: ActorName) = log_debug(s"$actorName:$msg",th)
     def log_hzso_actor_trace()(implicit actorName: ActorName) = log_trace(actorName.toString)
-    def log_hzso_actor_trace(msg: => String)(implicit actorName: ActorName) = log_trace("%s:%s".format(actorName,msg))
-    def log_hzso_actor_trace(msg: => String, th: Throwable)(implicit actorName: ActorName) = log_trace("%s:%s".format(actorName,msg),th)
-    def log_hzso_actor_error(msg: => String = "")(implicit actorName: ActorName) = log_error("%s:%s".format(actorName,msg))
+    def log_hzso_actor_trace(msg: => String)(implicit actorName: ActorName) = log_trace(s"$actorName:$msg")
+    def log_hzso_actor_trace(msg: => String, th: Throwable)(implicit actorName: ActorName) = log_trace(s"$actorName:$msg",th)
+    def log_hzso_actor_error(msg: => String = "")(implicit actorName: ActorName) = log_error(s"$actorName:$msg")
 
     /* ---------------------------------------------------------------------*/
 
@@ -157,18 +157,18 @@ object HZSocketControler {
         override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
         def sendData(sendingData: Array[Byte], out: BufferedOutputStream)(implicit actorName: ActorName): Option[Throwable] = {
-            log_hzso_actor_trace("%s:sendData(%s,%s)".format(so_desc,sendingData,out))
+            log_hzso_actor_trace(s"$so_desc:sendData($sendingData,$out)")
 
             val ret = catching(classOf[IOException]) either {
                 out.write(sendingData)
                 out.flush
             } match {
                 case Right(_) => {
-                    log_hzso_actor_trace("%s:sendData:%d=out.write(%s)".format(so_desc,sendingData.length,sendingData)) 
+                    log_hzso_actor_trace(f"$so_desc:sendData:${sendingData.length}%d=out.write($sendingData%s)") 
                     None
                 }
                 case Left(th) => {
-                    log_hzso_actor_trace("%s:sendData:out.write:%s".format(so_desc,th))
+                    log_hzso_actor_trace(s"$so_desc:sendData:out.write:$th")
                     Some(th)
                 }
             }
@@ -181,15 +181,15 @@ object HZSocketControler {
                 exitNormaly(HZCommandStoped(), parent)
             }
             case HZDataSending(sendingData) => {
-                log_hzso_actor_debug("HZDataSending(%s)=%d".format(sendingData,sendingData.length))
-                log_hzso_actor_trace("HZDataSending:%n%s".format(hexDump(sendingData)))
+                log_hzso_actor_debug(f"HZDataSending($sendingData%s)=${sendingData.length}%d")
+                log_hzso_actor_trace(s"HZDataSending:%n${hexDump(sendingData)}")
                 sendData(sendingData, outStream) match {
                     case None => {
                         log_hzso_actor_trace("HZDataSending:sendData:None")
                     }
                     case Some(th) => {
-                        log_hzso_actor_error("HZDataSending:sendData(%s,%s):%s".format(sendingData,outStream,th))
-                        log_hzso_actor_debug("HZDataSending:sendData:%n%s".format(self,sendingData,outStream),th)
+                        log_hzso_actor_error(s"HZDataSending:sendData($sendingData,$outStream):$th")
+                        log_hzso_actor_debug("HZDataSending:sendData:",th)
                         exitWithError(th, parent)
                     }
                 }
@@ -200,7 +200,7 @@ object HZSocketControler {
         def start(outStream: BufferedOutputStream, so_desc: HZSocketDescription, name: String = "Sender")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_trace("SenderActor:start(%s,%s)(%s,%s)".format(so_desc,name,parent,context))
+            log_trace(s"SenderActor:start($so_desc,$name)($parent,$context)")
             context.actorOf(Props(new SenderActor(outStream,so_desc,name,parent)), name)
         }
     }
@@ -218,15 +218,15 @@ object HZSocketControler {
 
         private val readBuff = new Array[Byte](4096)
         def receiveData(in: BufferedInputStream)(implicit actorName: ActorName): Either[Throwable,Option[Array[Byte]]] = {
-            log_hzso_actor_trace("receiveData(%s)".format(in))
+            log_hzso_actor_trace(s"receiveData($in)")
 
             val ret = catching(classOf[IOException]) either {
                 in.read(readBuff)
             } match {
                 case Right(c) => {
-                    log_hzso_actor_trace("receiveData:%d=in.read(%s)".format(c,readBuff)) 
+                    log_hzso_actor_trace(f"receiveData:$c%d=in.read($readBuff%s)") 
                     if(c < 0) {
-                        log_hzso_actor_debug("receiveData:in.read:%d".format(c)) 
+                        log_hzso_actor_debug(f"receiveData:in.read:$c%d") 
                         Right(None)
                     } else if(c == 0) {
                         log_hzso_actor_debug("receiveData:in.read:0") 
@@ -236,7 +236,7 @@ object HZSocketControler {
                     } else Right(Some(readBuff.take(c)))
                 }
                 case Left(th) => {
-                    log_hzso_actor_debug("receiveData:in.read:%s".format(th)) 
+                    log_hzso_actor_debug(s"receiveData:in.read:$th") 
                     Left(th)
                 }
             }
@@ -253,8 +253,8 @@ object HZSocketControler {
                     case Right(receivedDataOpt) => {
                         receivedDataOpt match {
                             case Some(receivedData) => {
-                                log_hzso_actor_debug("receiveData:Right(%s)".format(receivedData))
-                                log_hzso_actor_trace("receiveData:Right:%n%s".format(hexDump(receivedData)))
+                                log_hzso_actor_debug(s"receiveData:Right($receivedData)")
+                                log_hzso_actor_trace(s"receiveData:Right:%n${hexDump(receivedData)}%s")
                                 parent ! HZDataReceived(receivedData)
                                 self ! ReceiveLoop()
                             }
@@ -271,15 +271,15 @@ object HZSocketControler {
                             log_hzso_actor_debug("receiveData:Left(InterruptedException)")
                         }
                         case _: SocketException => {
-                            log_hzso_actor_error("receiveData:Left(SocektExcpetion(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"receiveData:Left(SocektExcpetion(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _: IOException => {
-                            log_hzso_actor_error("receiveData:Left(IOExcpetion(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"receiveData:Left(IOExcpetion(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _ => {
-                            log_hzso_actor_error("receiveData:Left(%s)".format(th))
+                            log_hzso_actor_error(s"receiveData:Left($th)")
                             log_hzso_actor_debug("receiveData:Left",th)
                             exitWithError(th, parent)
                         }
@@ -292,7 +292,7 @@ object HZSocketControler {
         def start(inStream: BufferedInputStream, so_desc: HZSocketDescription, name: String = "Receiver")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("ReceiverActor:start(%s,%s)(%s,%s)".format(so_desc,name,parent,context))
+            log_debug(s"ReceiverActor:start($so_desc,$name)($parent,$context)")
             context.actorOf(Props(new ReceiverActor(inStream,so_desc,name,parent)), name)
         }
     }
@@ -315,14 +315,12 @@ object HZSocketControler {
         }
 
         def isSocketSendable(so: Socket): Boolean = {
-            log_hzso_actor_trace("isSocketSendable:isConnected=%s,isClosed=%s,isOutputShutdown=%s"
-                      .format(so.isConnected,so.isClosed,so.isOutputShutdown))
+            log_hzso_actor_trace(s"isSocketSendable:isConnected=${so.isConnected},isClosed=${so.isClosed},isOutputShutdown=${so.isOutputShutdown}")
             so.isConnected && (!so.isClosed) && (!so.isOutputShutdown)
         }
 
         def isSocketReadable(so: Socket): Boolean = {
-            log_hzso_actor_trace("isSocketReadable:isConnected=%s,isClosed=%s,isInputShutdown=%s"
-                      .format(so.isConnected,so.isClosed,so.isInputShutdown))
+            log_hzso_actor_trace(s"isSocketReadable:isConnected=${so.isConnected},isClosed=${so.isClosed},isInputShutdown=${so.isInputShutdown}")
             so.isConnected && (!so.isClosed) && (!so.isInputShutdown)
         }
 
@@ -348,7 +346,7 @@ object HZSocketControler {
         var originReason: HZActorReason = null
         def stopIO1(reason: HZActorReason, stopedActorOpt: Option[ActorRef] = None) {
             (nextReceiver orElse ({
-                case x => log_hzso_actor_debug("loopRunning:stopIO1:nextReceiver:orElse:%s".format(x))
+                case x => log_hzso_actor_debug(s"loopRunning:stopIO1:nextReceiver:orElse:$x")
             }: NextReceiver))((staticData,HZIOStop(HZSocketDescription(socket),reason,self,parent)))
             staticData.cleanUp
             socket.close
@@ -367,11 +365,11 @@ object HZSocketControler {
 
         def receive = {
 //            case dataReceived @ HZDataReceived(r) => {
-//                log_debug("SocketIO:receive:HZDataReceived(%s)".format(r))
+//                log_debug(s"SocketIO:receive:HZDataReceived($r)")
 //                parent ! dataReceived
 //            }
             case sendData @ HZDataSending(s) => {
-                log_hzso_actor_debug("receive:HZDataSending(%s)".format(s))
+                log_hzso_actor_debug(s"receive:HZDataSending($s)")
                 if(isSocketSendable(socket)) {
                     log_hzso_actor_trace("receive:HZDataSending:isSocketSendable:true")
                     senderActor ! sendData
@@ -381,11 +379,11 @@ object HZSocketControler {
                 }
             }
             case HZReqAddActor(a) => {
-                log_hzso_actor_debug("receive:HZReqAddActor(%s)".format(a))
+                log_hzso_actor_debug(s"receive:HZReqAddActor($a)")
                 actorStates += a
             }
             case HZReqDelActor(a) => {
-                log_hzso_actor_debug("receive:HZReqDelActor(%s)".format(a))
+                log_hzso_actor_debug(s"receive:HZReqDelActor($a)")
                 actorStates -= a
             }
             case HZStop() => {
@@ -393,48 +391,48 @@ object HZSocketControler {
                 stopIO1(HZCommandStoped())
             }
             case HZStopWithReason(reason) => {
-                log_hzso_actor_debug("receive:HZStopWithReason(%s)".format(reason))
+                log_hzso_actor_debug(s"receive:HZStopWithReason($reason)")
                 stopIO1(HZCommandStopedWithReason(reason))
             }
             case Terminated(stopedActor: ActorRef) => {
-                log_hzso_actor_debug("receive:Terminated(%s)".format(stopedActor))
+                log_hzso_actor_debug(s"receive:Terminated($stopedActor)")
                 stopIO1(HZNullReason, Some(stopedActor))
             }
             case reason: HZActorReason => {
-                log_hzso_actor_debug("receive:HZActorReason=%s".format(reason))
+                log_hzso_actor_debug(s"receive:HZActorReason=$reason")
                 actorStates.addReason(sender, reason)
             }
             case x => {
                 (nextReceiver orElse ({
-                    case _ => log_hzso_actor_debug("receive:nextReceiver:orElse:%s".format(x))
+                    case _ => log_hzso_actor_debug(s"receive:nextReceiver:orElse:$x")
                 }: NextReceiver))((staticData,x))
             }
         }
 
         def receiveExiting: Actor.Receive = {
             case HZReqDelActor(a) => {
-                log_hzso_actor_debug("receiveExiting:HZReqDelActor(%s)".format(a))
+                log_hzso_actor_debug(s"receiveExiting:HZReqDelActor($a)")
                 actorStates -= a
             }
             case reason: HZActorReason => {
-                log_hzso_actor_debug("receiveExiting:HZActorReason=%s".format(reason))
+                log_hzso_actor_debug(s"receiveExiting:HZActorReason=$reason")
                 actorStates.addReason(sender, reason)
             }
             case Terminated(stopedActor: ActorRef) => {
-                log_hzso_actor_debug("receiveExiting:Terminated(%s)".format(stopedActor))
+                log_hzso_actor_debug(s"receiveExiting:Terminated($stopedActor)")
                 actorStates -= stopedActor
-                log_hzso_actor_trace("receiveExiting:actorStateSet=%s".format(actorStates))
+                log_hzso_actor_trace(s"receiveExiting:actorStateSet=$actorStates")
                 if(actorStates.isEmpty)
                     exitNormaly(originReason,parent)
             }
-            case x => log_hzso_actor_debug("receiveExiting:%s".format(x))
+            case x => log_hzso_actor_debug(s"receiveExiting:$x")
         }
     }
     object SocketIOActor {
         def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String = "SocketIO")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("SocketIOActor:start(%s,%s,%s)(%s,%s)".format(socket,staticDataBuilder,name,parent,context))
+            log_debug(s"SocketIOActor:start($socket,$staticDataBuilder,$name)($parent,$context)")
             context.actorOf(Props(new SocketIOActor(socket, staticDataBuilder, name, parent)), name)
         }
     }
@@ -451,7 +449,7 @@ object HZSocketControler {
         catching(classOf[IOException]) either {
             localSocketAddressOpt match {
                 case Some(socketAddress) => {
-                    log_hzso_actor_debug("socket.bind(%s)".format(socketAddress))
+                    log_hzso_actor_debug(s"socket.bind($socketAddress)")
                     socket.setReuseAddress(reuseAddress)
                     socket.bind(socketAddress)
                 }
@@ -461,15 +459,15 @@ object HZSocketControler {
             case Right(so) => so
             case Left(th) => th match {
                 case _: BindException => {
-                    log_hzso_actor_error("socket.bind:Left(BindException(%s))".format(th.getMessage))
+                    log_hzso_actor_error(s"socket.bind:Left(BindException(${th.getMessage}))")
                     exitWithError(th, parent)
                 }
                 case _: IOException => {
-                    log_hzso_actor_error("socket.bind:Left(IOExcpetion(%s))".format(th.getMessage))
+                    log_hzso_actor_error(s"socket.bind:Left(IOExcpetion(${th.getMessage}))")
                     exitWithError(th, parent)
                 }
                 case _ => {
-                    log_hzso_actor_error("socket.bind:Left(%s)".format(th)) 
+                    log_hzso_actor_error(s"socket.bind:Left($th)") 
                     log_hzso_actor_debug("socket.bind:Left",th) 
                     exitWithError(th, parent)
                 }
@@ -489,29 +487,29 @@ object HZSocketControler {
                     socket
                 } match {
                     case Right(so) => {
-                        log_hzso_actor_debug("socket.connect:Right(%s)".format(so))
+                        log_hzso_actor_debug(s"socket.connect:Right($so)")
                         parent ! HZEstablished(so)
                         exitNormaly(parent)
                     }
                     case Left(th) => th match {
                         case _: SocketTimeoutException => {
-                            log_hzso_actor_error("socket.connect:Left(SocketTimeoutException(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"socket.connect:Left(SocketTimeoutException(${th.getMessage}))")
                             exitNormaly(HZConnectTimeout(),parent)
                         }
                         case _: ConnectException => {
-                            log_hzso_actor_error("socket.connect:Left(ConnectException(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"socket.connect:Left(ConnectException(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _: SocketException => {
-                            log_hzso_actor_error("socket.connect:Left(SocektExcpetion(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"socket.connect:Left(SocektExcpetion(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _: IOException => {
-                            log_hzso_actor_error("socket.connect:Left(IOExcpetion(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"socket.connect:Left(IOExcpetion(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _ => {
-                            log_hzso_actor_error("socket.connect:Left(%s)".format(th)) 
+                            log_hzso_actor_error(s"socket.connect:Left($th)") 
                             log_hzso_actor_debug("socket.connect:Left",th) 
                             exitWithError(th, parent)
                         }
@@ -525,7 +523,8 @@ object HZSocketControler {
                   timeout: Int, reuseAddress: Boolean, name: String = "Connector")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("ConnectorActor:start(%s,%s,%d,%s,%s)(%s,%s)".format(address,localSocketAddressOpt,timeout,reuseAddress,name,parent,context))
+            log_debug(f"ConnectorActor:start($address%s,$localSocketAddressOpt%s,$timeout%d,$reuseAddress%s,$name%s)" +
+                      s"($parent,$context)")
             context.actorOf(Props(new ConnectorActor(address,localSocketAddressOpt,timeout,reuseAddress,name,parent)), name)
         }
     }
@@ -540,7 +539,7 @@ object HZSocketControler {
             } match {
                 case Right(_) => /* Ok, Nothing to do. */
                 case Left(th) => {
-                    log_hzso_actor_error("serverSocket.setSoTimeout:Left(%s)".format(th)) 
+                    log_hzso_actor_error(s"serverSocket.setSoTimeout:Left($th)") 
                     log_hzso_actor_debug("serverSocket.setSoTimeout:Left",th) 
                     exitWithError(th, parent)
                 }
@@ -559,24 +558,24 @@ object HZSocketControler {
                     serverSocket.accept()
                 } match {
                     case Right(so) => {
-                        log_hzso_actor_debug("serverSocket.accept:Right(%s)".format(so))
+                        log_hzso_actor_debug(s"serverSocket.accept:Right($so)")
                         parent ! HZAccepted(so)
                     }
                     case Left(th) => th match {
                         case _: SocketTimeoutException => {
-                            log_hzso_actor_error("serverSocket.accept:Left(SocketTimeoutException(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"serverSocket.accept:Left(SocketTimeoutException(${th.getMessage}))")
                             exitNormaly(HZConnectTimeout(),parent)
                         }
                         case _: SocketException => {
-                            log_hzso_actor_error("serverSocket.accept:Left(SocektExcpetion(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"serverSocket.accept:Left(SocektExcpetion(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _: IOException => {
-                            log_hzso_actor_error("serverSocket.accept:Left(IOExcpetion(%s))".format(th.getMessage))
+                            log_hzso_actor_error(s"serverSocket.accept:Left(IOExcpetion(${th.getMessage}))")
                             exitWithError(th, parent)
                         }
                         case _ => {
-                            log_hzso_actor_error("serverSocket.accept:Left(%s)".format(th)) 
+                            log_hzso_actor_error(s"serverSocket.accept:Left($th)") 
                             log_hzso_actor_debug("serverSocket.accept:Left",th) 
                             exitWithError(th, parent)
                         }
@@ -590,7 +589,7 @@ object HZSocketControler {
         def start(serverSocket: ServerSocket, timeout: Int, name: String = "Accepter")
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("AccepterActor.start(%s,%d,%s)(%s,%s)".format(serverSocket,timeout,name,parent,context))
+            log_debug(f"AccepterActor.start($serverSocket%s,$timeout%d,$name%s)($parent,$context)")
             context.actorOf(Props(new AccepterActor(serverSocket,timeout,name,parent)), name)
         }
     }
