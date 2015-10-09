@@ -29,10 +29,34 @@ import org.hirosezouen.hzactor.HZActor._
 import org.hirosezouen.hzutil.HZIO._
 import org.hirosezouen.hzutil.HZLog._
 
-import HZSocketClient._
+//import HZSocketClient._
+import HZSocketControler.{NextReceiver, SocketIOActor}
 
 object HZEchoClient {
     implicit val logger = getLogger(this.getClass.getName)
+
+    class MySocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder,
+                          name: String, parent: ActorRef)
+    extends SocketIOActor(socket, staticDataBuilder, name, parent)
+    {
+        val nextReceiver: NextReceiver = {
+            case (_,s: String) => {
+                self ! HZDataSending(s.getBytes)
+            }
+            case (_,HZDataReceived(receivedData)) => {
+                log_info(new String(receivedData))
+            }
+        }
+    }
+    object MySocketIOActor {
+        def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder)
+                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
+        = {
+            log_trace("MySocketIOActor:start(%s,%s)(%s,%s)".format(socket,staticDataBuilder,parent,context))
+            val name = "MySocketIOActor"
+            context.actorOf(Props(new MySocketIOActor(socket,staticDataBuilder,name,parent)), name)
+        }
+    }
 
     class MainActor(ip: String, port: Int) extends Actor {
         log_trace("MainActor")
