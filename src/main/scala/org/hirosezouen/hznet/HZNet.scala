@@ -299,13 +299,11 @@ object HZSocketControler {
 
     /* ---------------------------------------------------------------------*/
 
-    type IOActorBuilder = (Socket, SocketIOStaticDataBuilder, String) => (ActorRef, ActorRefFactory) => ActorRef
     type NextReceiver = PartialFunction[Tuple2[SocketIOStaticData,Any],Any]
 
-    class SocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String, parent: ActorRef) extends Actor
+    class SocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String, parent: ActorRef,
+                        nextReceiver: NextReceiver) extends Actor
     {
-        val nextReceiver: NextReceiver = { case (s,a) => a }
-
         private val so_desc = HZSocketDescription(socket)
         implicit val actorName = ActorName("SocketIO", self, so_desc)
 
@@ -430,10 +428,11 @@ object HZSocketControler {
     }
     object SocketIOActor {
         def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String = "SocketIO")
+                 (nextReceiver: NextReceiver)
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
             log_debug(s"SocketIOActor:start($socket,$staticDataBuilder,$name)($parent,$context)")
-            context.actorOf(Props(new SocketIOActor(socket, staticDataBuilder, name, parent)), name)
+            context.actorOf(Props(new SocketIOActor(socket, staticDataBuilder, name, parent, nextReceiver)), name)
         }
     }
 

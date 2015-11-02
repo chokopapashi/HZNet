@@ -34,9 +34,8 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
     import HZSocketControler.{logger => _, _}
     import hzSoConf._
 
-    class SocketServerActor(staticDataBuilder: SocketIOStaticDataBuilder,
-                            ioActorBuilder: IOActorBuilder,
-                            name: String, parent: ActorRef) extends Actor
+    class SocketServerActor(staticDataBuilder: SocketIOStaticDataBuilder, name: String,
+                            parent: ActorRef, nextReceive: NextReceiver) extends Actor
     {
         log_trace("SocketServerActor(%s,%s)".format(staticDataBuilder,parent))
 
@@ -144,7 +143,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                             stopServer1(HZErrorStoped(th))
                         }
                     }
-                    val ioActor = ioActorBuilder(so, staticDataBuilder, name + ".SocketIO")(self,context)
+                    val ioActor = SocketIOActor.start(so, staticDataBuilder, name + ".SocketIO")(nextReceive)
                     actorStates += ioActor
                     val so_desc = HZSocketDescription(so)
                     ioActorMap += (ioActor -> so_desc)
@@ -191,12 +190,12 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
 
     object SocketServerActor {
         def start(staticDataBuilder: SocketIOStaticDataBuilder,
-                  ioActorBuilder: IOActorBuilder,
                   name: String = "SocketServerActor")
+                 (nextBody: NextReceiver)
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
             log_debug("SocketServer:start(%s,%s)(%s)".format(staticDataBuilder,name,parent))
-            context.actorOf(Props(new SocketServerActor(staticDataBuilder,ioActorBuilder,name,parent)), name)
+            context.actorOf(Props(new SocketServerActor(staticDataBuilder,name,parent,nextBody)), name)
         }
     }
 }
@@ -204,16 +203,16 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
 object HZSocketServer {
     implicit val logger = getLogger(this.getClass.getName)
 
-    import HZSocketControler.{logger => _, _}
+    import org.hirosezouen.hznet.{HZSocketControler => hzso}
 
     def startSocketServer(hzSoConf: HZSoServerConf,
                           staticDataBuilder: SocketIOStaticDataBuilder,
-                          ioActorBuilder: IOActorBuilder,
                           name: String = "SocketServerActor")
+                         (nextBody: hzso.NextReceiver)
                          (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
     = {
         log_debug("startSocketServer(%s,%s,%s)(%s)".format(hzSoConf,staticDataBuilder,name,parent))
-        HZSocketServer(hzSoConf).SocketServerActor.start(staticDataBuilder, ioActorBuilder, name)(parent,context)
+        HZSocketServer(hzSoConf).SocketServerActor.start(staticDataBuilder, name)(nextBody)(parent,context)
     }
 }
 
