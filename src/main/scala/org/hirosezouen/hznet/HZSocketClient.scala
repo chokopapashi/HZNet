@@ -25,7 +25,7 @@ import org.hirosezouen.hzactor.HZActor._
 case class HZSocketClient(hzSoConf: HZSoClientConf)
 {
     implicit val logger = getLogger(this.getClass.getName)
-    log_debug("HZSocketClient(%s)".format(hzSoConf))
+    log_debug(s"HZSocketClient($hzSoConf)")
 
     import HZSocketControler.{logger => _, _}
     import hzSoConf._
@@ -33,7 +33,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
     class SocketClientActor(staticDataBuilder: SocketIOStaticDataBuilder, name: String,
                             parent: ActorRef, nextReceive: NextReceiver) extends Actor
     {
-        log_trace("SocketClientActor(%s,%s)".format(staticDataBuilder,parent))
+        log_trace(s"SocketClientActor($staticDataBuilder,$parent)")
 
         private implicit val actorName = ActorName("SocketClient", self)
 
@@ -56,7 +56,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
 
         var originReason: HZActorReason = null
         def stopClient1(reason: HZActorReason, stopedActorOpt: Option[ActorRef] = None) {
-            log_hzso_actor_trace("stopClient1(%s,%s)".format(reason,stopedActorOpt))
+            log_hzso_actor_trace(s"stopClient1($reason,$stopedActorOpt)")
             if(reason != null) originReason = reason
             stopedActorOpt match {
                 case Some(a) => {
@@ -72,7 +72,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 log_hzso_actor_trace("actorStates.isEmpty==true")
                 exitNormaly(originReason,parent)
             } else {
-                log_hzso_actor_trace("actorStates=%d".format(actorStates.size))
+                log_hzso_actor_trace(f"actorStates=${actorStates.size}%d")
                 actorStates.foreach(_.actor ! HZStop())
                 context.become(receiveExiting)
             }
@@ -84,7 +84,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                  *  Only save the acquired Socket here.
                  *  SocketIOActor starts when Terminated message of ConnectorActor is received.
                  */
-                log_hzso_actor_debug("receiveConnecting:HZEstablished(%s)".format(so))
+                log_hzso_actor_debug(s"receiveConnecting:HZEstablished($so%s)")
                 so.setSoTimeout(hzSoConf.recvTimeout)
                 so_desc = HZSocketDescription(so)
             }
@@ -93,7 +93,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 exitNormaly(HZCommandStoped(),parent)
             }
             case HZStopWithReason(reason) => {
-                log_hzso_actor_debug("receiveConnecting:HZStopWithReason(%s)".format(reason))
+                log_hzso_actor_debug(s"receiveConnecting:HZStopWithReason($reason)")
                 stopClient1(HZCommandStopedWithReason(reason))
             }
             case Terminated(stopedActor: ActorRef) => {
@@ -101,7 +101,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                  * Receive this message just followed by HZEstablished.
                  * Hence, Sender is ConnectorActor only.
                  */
-                log_hzso_actor_debug("receiveConnecting:Terminated(%s)".format(stopedActor))
+                log_hzso_actor_debug(s"receiveConnecting:Terminated($stopedActor)")
                 actorStates -= stopedActor
                 ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder,  name + ".SocketIO")(nextReceive)
                 actorStates += ioActor
@@ -112,11 +112,11 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 /*
                  * Stop ConnectorActor when it receive an error reason.
                  */
-                log_hzso_actor_debug("receiveConnecting:HZActorStoped=%s".format(reason))
+                log_hzso_actor_debug(s"receiveConnecting:HZActorStoped=$reason")
                 stopClient1(reason, Some(sender))
             }
             case reason: HZActorReason => {
-                log_hzso_actor_debug("receiveConnecting:HZActorReason=%s".format(reason))
+                log_hzso_actor_debug(s"receiveConnecting:HZActorReason=$reason")
                 actorStates.addReason(sender, reason)
             }
         }
@@ -136,35 +136,35 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 stopClient1(HZCommandStoped())
             }
             case HZStopWithReason(reason) => {
-                log_hzso_actor_debug("receive:HZStopWithReason(%s)".format(reason))
+                log_hzso_actor_debug(s"receive:HZStopWithReason($reason)")
                 stopClient1(HZCommandStopedWithReason(reason))
             }
             case Terminated(stopedActor: ActorRef) => {
-                log_hzso_actor_debug("receive:Terminated(%s)".format(stopedActor))
+                log_hzso_actor_debug(s"receive:Terminated($stopedActor)")
                 stopClient1(HZNullReason, Some(stopedActor))
             }
             case reason: HZActorReason => {
-                log_hzso_actor_debug("receive:HZActorReason=%s".format(reason))
+                log_hzso_actor_debug(s"receive:HZActorReason=$reason")
                 actorStates.addReason(sender, reason)
             }
             case x => {
-                log_hzso_actor_debug("receive:%s".format(x))
+                log_hzso_actor_debug(s"receive:$x")
             }
         }
 
         def receiveExiting: Actor.Receive = {
             case Terminated(stopedActor: ActorRef) => {
-                log_hzso_actor_debug("receiveExiting:Terminated(%s)".format(stopedActor))
+                log_hzso_actor_debug(s"receiveExiting:Terminated($stopedActor %s)")
                 stopClient1(HZNullReason, Some(stopedActor))
                 actorStates -= stopedActor
                 if(actorStates.isEmpty)
                     exitNormaly(originReason, parent)
             }
             case reason: HZActorReason => {
-                log_hzso_actor_debug("receive:HZActorReason=%s".format(reason))
+                log_hzso_actor_debug(s"receive:HZActorReason=$reason")
                 actorStates.addReason(sender, reason)
             }
-            case x => log_hzso_actor_debug("receiveExiting:%s".format(x))
+            case x => log_hzso_actor_debug(s"receiveExiting:$x")
         }
     }
     object SocketClientActor {
@@ -173,7 +173,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                  (nextBody: NextReceiver)
                  (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
         = {
-            log_debug("SocketClientActor:start(%s,%s)(%s)".format(staticDataBuilder,name,parent))
+            log_debug(s"SocketClientActor:start($staticDataBuilder,$name)($parent,$context)")
             context.actorOf(Props(new SocketClientActor(staticDataBuilder, name, parent,nextBody)), name)
         }
     }
@@ -190,7 +190,7 @@ object HZSocketClient {
                          (nextBody: NextReceiver)
                          (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
     = {
-        log_debug("startSocketClient(%s,%s,%s)(%s)".format(hzSoConf,staticDataBuilder,name,parent))
+        log_debug(s"startSocketClient($hzSoConf,$staticDataBuilder,$name)($parent,$context)")
         HZSocketClient(hzSoConf).SocketClientActor.start(staticDataBuilder, name)(nextBody)(parent, context)
     }
 }
