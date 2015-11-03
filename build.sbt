@@ -10,7 +10,7 @@
 lazy val commonSettings = Seq(
     organization := "org.hirosezouen",
     version      := "1.0.0",
-    scalaVersion := "2.11.6"
+    scalaVersion := "2.11.7"
 )
 
 lazy val root = (project in file(".")).
@@ -24,9 +24,8 @@ lazy val root = (project in file(".")).
 
         // add Akka dependency
 //        resolvers += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/",
-//        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4-SNAPSHOT",
-        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.3.11",
-        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.3.11",
+        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.0",
+        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.0",
 
         // add ScalaTest dependency
         libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
