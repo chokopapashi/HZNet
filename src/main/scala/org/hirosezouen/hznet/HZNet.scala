@@ -123,7 +123,7 @@ object SocketIOStaticDataBuilder extends SocketIOStaticDataBuilder {
 
 case class ReceiveLoop()
 
-case class SocketIOActorProxy(ioActor: ActorRef, ioActorContext: ActorContext, socketActor: ActorRef, sender: ActorRef)
+case class SocketIOActorProxy(self: ActorRef, context: ActorContext, parent: ActorRef, sender: ActorRef)
 
 /* ======================================================================== */
 
