@@ -7,13 +7,16 @@
 
 package org.hirosezouen.hznet
 
+import java.io.InputStream
 import java.io.File
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.Exception._
 
 import akka.actor.Actor
+import akka.actor.ActorContext
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
@@ -29,115 +32,99 @@ import org.hirosezouen.hzactor.HZActor._
 import org.hirosezouen.hzutil.HZIO._
 import org.hirosezouen.hzutil.HZLog._
 
-//import HZSocketClient._
-import HZSocketControler.{NextReceiver, SocketIOActor}
+import HZSocketClient._
+//import HZSocketControler.{NextReceiver, SocketIOActor}
+
+class MyInputActor(in: InputStream) extends InputActor(in, defaultInputFilter) {
+    val quit_r = "(?i)^q$".r
+
+    override val input: PFInput = {
+        case quit_r() => System.in.close
+        case s => {
+//                soClient ! HZDataSending(s.getBytes)
+            context.actorSelection("../EchoClientActor") ! HZDataSending(s.getBytes)
+        }
+    }
+}
+object MyInputActor {
+    def start(in: InputStream)(implicit context: ActorContext): ActorRef
+        = context.actorOf(Props(new MyInputActor(in)), "MyInputActor")
+}
+
+class HZEchoClient(ip: String, port: Int) extends Actor {
+    implicit val logger = getLogger(this.getClass.getName)
+    log_trace("HZEchoClient")
+
+    override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries=1, withinTimeRange=1 minutes, loggingEnabled=true) {
+        case _: Exception => Stop
+        case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
+    }
+
+    private val actorStates = HZActorStates()
+
+    override def preStart() {
+        log_trace("preStart")
+
+        actorStates += startSocketClient(HZSoClientConf(ip,port,10000,0,false),
+                                         SocketIOStaticDataBuilder,
+                                         "EchoClientActor")
+        {
+            case (_,ioActorProxy,s: String) => {
+                ioActorProxy.self ! HZDataSending(s.getBytes)
+            }
+            case (_,_,HZDataReceived(receivedData)) => {
+                log_info(new String(receivedData))
+            }
+        }
+
+        actorStates += MyInputActor.start(System.in)
+    }
+    override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
+
+    def receive = {
+        case Terminated(stopedActor: ActorRef) => {
+            log_trace("HZEchoClient:receive:Terminated(%s)".format(stopedActor))
+            actorStates -= stopedActor
+            if(actorStates.isEmpty) {
+                log_trace("HZEchoClient:receive:Terminated:actorStates.isEmpty==true")
+                context.system.terminate()
+            } else {
+                log_trace("HZEchoClient:receive:Terminated:actorStates.isEmpty==false")
+                actorStates.foreach(_.actor ! HZStop())
+                System.in.close()   /* InputAcotorはclose()の例外で停止する */
+                context.become(receiveExiting)
+            }
+        }
+        case reason: HZActorReason => {
+            log_debug("HZEchoClient:receive:HZActorReason=%s".format(reason))
+            actorStates.addReason(sender, reason)
+        }
+    }
+
+    def receiveExiting: Actor.Receive = {
+        case Terminated(stopedActor: ActorRef) => {
+            log_trace("HZEchoClient:receiveExiting:Terminated(%s)".format(stopedActor))
+            actorStates -= stopedActor
+            if(actorStates.isEmpty)
+                context.system.terminate()
+        }
+        case reason: HZActorReason => {
+            log_debug("HZEchoClient:receiveExiting:HZActorReason=%s".format(reason))
+            actorStates.addReason(sender, reason)
+        }
+    }
+}
 
 object HZEchoClient {
     implicit val logger = getLogger(this.getClass.getName)
 
-    class MySocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder,
-                          name: String, parent: ActorRef)
-    extends SocketIOActor(socket, staticDataBuilder, name, parent)
-    {
-        val nextReceiver: NextReceiver = {
-            case (_,s: String) => {
-                self ! HZDataSending(s.getBytes)
-            }
-            case (_,HZDataReceived(receivedData)) => {
-                log_info(new String(receivedData))
-            }
-        }
-    }
-    object MySocketIOActor {
-        def start(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder)
-                 (implicit parent: ActorRef, context: ActorRefFactory): ActorRef
-        = {
-            log_trace("MySocketIOActor:start(%s,%s)(%s,%s)".format(socket,staticDataBuilder,parent,context))
-            val name = "MySocketIOActor"
-            context.actorOf(Props(new MySocketIOActor(socket,staticDataBuilder,name,parent)), name)
-        }
-    }
-
-    class MainActor(ip: String, port: Int) extends Actor {
-        log_trace("MainActor")
-
-        override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries=1, withinTimeRange=1 minutes, loggingEnabled=true) {
-            case _: Exception => Stop
-            case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
-        }
-
-        private val actorStates = HZActorStates()
-
-        override def preStart() {
-            log_trace("preStart")
-
-            actorStates += startSocketClient(HZSoClientConf(ip,port,10000,0,false),
-                                             SocketIOStaticDataBuilder,
-                                             "EchoClient")
-            {
-                case (_,s: String) => {
-                    self ! HZDataSending(s.getBytes)
-                }
-                case (_,HZDataReceived(receivedData)) => {
-                    log_info(new String(receivedData))
-                }
-            }
-
-            val quit_r = "(?i)^q$".r
-            actorStates += InputActor.start(System.in) {
-                case quit_r() => {
-                    System.in.close
-                }
-                case s => {
-//                    soClient ! HZDataSending(s.getBytes)
-                    context.actorSelection("../EchoClient") ! HZDataSending(s.getBytes)
-                }
-            }
-        }
-        override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
-
-        def receive = {
-            case Terminated(stopedActor: ActorRef) => {
-                log_trace("MainActor:receive:Terminated(%s)".format(stopedActor))
-                actorStates -= stopedActor
-                if(actorStates.isEmpty) {
-                    log_trace("MainActor:receive:Terminated:actorStates.isEmpty==true")
-                    context.system.shutdown()
-                } else {
-                    log_trace("MainActor:receive:Terminated:actorStates.isEmpty==false")
-                    actorStates.foreach(_.actor ! HZStop())
-                    System.in.close()   /* InputAcotorはclose()の例外で停止する */
-                    context.become(receiveExiting)
-                }
-            }
-            case reason: HZActorReason => {
-                log_debug("MainActor:receive:HZActorReason=%s".format(reason))
-                actorStates.addReason(sender, reason)
-            }
-        }
-
-        def receiveExiting: Actor.Receive = {
-            case Terminated(stopedActor: ActorRef) => {
-                log_trace("MainActor:receiveExiting:Terminated(%s)".format(stopedActor))
-                actorStates -= stopedActor
-                if(actorStates.isEmpty)
-                    context.system.shutdown()
-            }
-            case reason: HZActorReason => {
-                log_debug("MainActor:receiveExiting:HZActorReason=%s".format(reason))
-                actorStates.addReason(sender, reason)
-            }
-        }
-    }
-    object MainActor {
-        def start(ip: String, port: Int)(implicit system: ActorRefFactory): ActorRef = {
-            log_debug("MainActor:Start")
-            system.actorOf(Props(new MainActor(ip, port)), "MainActor")
-        }
+    def start(ip: String, port: Int)(implicit system: ActorRefFactory): ActorRef = {
+        log_debug("HZEchoClient$:Start")
+        system.actorOf(Props(new HZEchoClient(ip, port)), "HZEchoClient")
     }
 
     def main(args: Array[String]) {
-        log_info("HZEchoClient:Start")
+        log_info("HZEchoClient$:Start")
 
         if(args.length < 2) {
             log_error("error : Argument required.")
@@ -153,11 +140,11 @@ object HZEchoClient {
         }
 
         val config = ConfigFactory.parseFile(new File("../application.conf"))
-        implicit val system = ActorSystem("HZEchoClient", config)
-        MainActor.start(ip, port)
-        system.awaitTermination()
+        implicit val system = ActorSystem("HZEchoClient$", config)
+        start(ip, port)
+        Await.result(system.whenTerminated, Duration.Inf)
 
-        log_info("HZEchoClient:end")
+        log_info("HZEchoClient$:end")
     }
 }
 
