@@ -25,6 +25,7 @@ import scala.language.postfixOps
 import scala.util.control.Exception._
 
 import akka.actor.Actor
+import akka.actor.ActorContext
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.Props
@@ -55,8 +56,10 @@ case class HZReqDelActor(actor: ActorRef) extends HZActorCommand
 case class HZDataReceived(receivedData: Array[Byte]) extends HZActorInformation
 case class HZAccepted(so: Socket) extends HZActorInformation
 case class HZEstablished(socket: Socket) extends HZActorInformation
-case class HZIOStart(so_desc: HZSocketDescription, ioActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
-case class HZIOStop(so_desc: HZSocketDescription, reason: AnyRef, ioActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
+case class HZIOStart(so_desc: HZSocketDescription) extends HZActorInformation
+case class HZSocketIOStart(so_desc: HZSocketDescription, ioActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
+case class HZIOStop(so_desc: HZSocketDescription, reason: AnyRef) extends HZActorInformation
+case class HZSocketIOStop(so_desc: HZSocketDescription, reason: AnyRef, ioActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
 case class HZSocketStop(so_desc: HZSocketDescription, reason: AnyRef, stopedActor: ActorRef, socketActor: ActorRef) extends HZActorInformation
 
 case class HZConnectTimeout()(implicit val sender: ActorRef) extends HZActorReason
@@ -95,21 +98,11 @@ trait SocketIOStaticDataImpl {
     def so_desc = _so_desc
     private def so_desc_=(sd: HZSocketDescription) = _so_desc = sd
 
-    private var _ioActor: ActorRef = null
-    def ioActor = _ioActor
-    private def ioActor_=(a: ActorRef) = _ioActor = a
-
-    private var _socketActor: ActorRef = null
-    def socketActor = _socketActor
-    private def socketActor_=(a: ActorRef) = _socketActor = a
-
-    private [hznet] def apply(sd: HZSocketDescription, ia: ActorRef, sa: ActorRef): Unit = {
+    private [hznet] def apply(sd: HZSocketDescription): Unit = {
         so_desc = sd
-        ioActor = ia
-        socketActor = sa
     }
 
-    def unapply(s: Any, ia: Any, sa: Any): Boolean = (s.isInstanceOf[Socket] && ia.isInstanceOf[ActorRef] && sa.isInstanceOf[ActorRef])
+    def unapply(s: Any): Boolean = (s.isInstanceOf[Socket])
 }
 
 trait SocketIOStaticData extends SocketIOStaticDataImpl {
@@ -129,6 +122,8 @@ object SocketIOStaticDataBuilder extends SocketIOStaticDataBuilder {
 }
 
 case class ReceiveLoop()
+
+case class SocketIOActorProxy(ioActor: ActorRef, ioActorContext: ActorContext, socketActor: ActorRef, sender: ActorRef)
 
 /* ======================================================================== */
 
@@ -299,7 +294,7 @@ object HZSocketControler {
 
     /* ---------------------------------------------------------------------*/
 
-    type NextReceiver = PartialFunction[Tuple2[SocketIOStaticData,Any],Any]
+    type NextReceiver = PartialFunction[Tuple3[SocketIOStaticData,SocketIOActorProxy,Any],Any]
 
     class SocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String, parent: ActorRef,
                         nextReceiver: NextReceiver) extends Actor
@@ -323,7 +318,7 @@ object HZSocketControler {
         }
 
         private val staticData = staticDataBuilder.build()
-        staticData(so_desc, self, parent)
+        staticData(so_desc)
         staticData.initialize
 
         private val out = new BufferedOutputStream(socket.getOutputStream)
@@ -345,7 +340,8 @@ object HZSocketControler {
         def stopIO1(reason: HZActorReason, stopedActorOpt: Option[ActorRef] = None) {
             (nextReceiver orElse ({
                 case x => log_hzso_actor_debug(s"loopRunning:stopIO1:nextReceiver:orElse:$x")
-            }: NextReceiver))((staticData,HZIOStop(HZSocketDescription(socket),reason,self,parent)))
+            }: NextReceiver))((staticData,SocketIOActorProxy(self,context,parent,sender()),
+                               HZIOStop(HZSocketDescription(socket),reason)))
             staticData.cleanUp
             socket.close
             if(reason != null) originReason = reason
@@ -403,7 +399,7 @@ object HZSocketControler {
             case x => {
                 (nextReceiver orElse ({
                     case _ => log_hzso_actor_debug(s"receive:nextReceiver:orElse:$x")
-                }: NextReceiver))((staticData,x))
+                }: NextReceiver))((staticData,SocketIOActorProxy(self,context,parent,sender()),x))
             }
         }
 

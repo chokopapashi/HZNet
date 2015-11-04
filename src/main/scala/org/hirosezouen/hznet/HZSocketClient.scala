@@ -62,7 +62,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 case Some(a) => {
                     actorStates -= a
                     if(ioActor == a) {
-                        parent ! HZIOStop(so_desc,reason,ioActor,self)
+                        parent ! HZSocketIOStop(so_desc,reason,ioActor,self)
                         ioActor = null
                     }
                 }
@@ -105,7 +105,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 actorStates -= stopedActor
                 ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder,  name + ".SocketIO")(nextReceive)
                 actorStates += ioActor
-                parent ! HZIOStart(so_desc, ioActor, self)
+                parent ! HZSocketIOStart(so_desc, ioActor, self)
                 context.unbecome()
             }
             case reason: HZErrorStoped => {

@@ -75,7 +75,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                     ioActorMap.get(a) match {
                         case Some(so_desc) => {
                             log_hzso_actor_trace(s"stopSocket1:ioActorMap.get:Some($so_desc)") 
-                            parent ! HZIOStop(so_desc, reason, a, self)
+                            parent ! HZSocketIOStop(so_desc, reason, a, self)
                             ioActorMap -= a
                         }
                         case None => {
@@ -146,7 +146,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                     actorStates += ioActor
                     val so_desc = HZSocketDescription(so)
                     ioActorMap += (ioActor -> so_desc)
-                    parent ! HZIOStart(so_desc, ioActor, self)
+                    parent ! HZSocketIOStart(so_desc, ioActor, self)
                 }
             }
             case HZStop() => {
