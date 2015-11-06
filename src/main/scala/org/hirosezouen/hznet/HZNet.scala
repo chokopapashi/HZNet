@@ -294,7 +294,7 @@ object HZSocketControler {
 
     /* ---------------------------------------------------------------------*/
 
-    type NextReceiver = PartialFunction[Tuple3[SocketIOStaticData,SocketIOActorProxy,Any],Any]
+    type NextReceiver = PartialFunction[Tuple3[SocketIOStaticData,SocketIOActorProxy,Any],Unit]
 
     class SocketIOActor(socket: Socket, staticDataBuilder: SocketIOStaticDataBuilder, name: String, parent: ActorRef,
                         nextReceiver: NextReceiver) extends Actor
