@@ -42,7 +42,7 @@ class MyInputActor(in: InputStream) extends InputActor(in, defaultInputFilter) {
         case quit_r() => System.in.close
         case s => {
 //                soClient ! HZDataSending(s.getBytes)
-            context.actorSelection("../EchoClientActor") ! HZDataSending(s.getBytes)
+            context.actorSelection("..") ! HZDataSending(s.getBytes)
         }
     }
 }
@@ -51,9 +51,9 @@ object MyInputActor {
         = context.actorOf(Props(new MyInputActor(in)), "MyInputActor")
 }
 
-class HZEchoClient(ip: String, port: Int) extends Actor {
+class HZEchoClient(ip: String, port: Int, name: String) extends Actor {
     implicit val logger = getLogger(this.getClass.getName)
-    log_trace("HZEchoClient")
+    log_trace(name)
 
     override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries=1, withinTimeRange=1 minutes, loggingEnabled=true) {
         case _: Exception => Stop
@@ -63,7 +63,7 @@ class HZEchoClient(ip: String, port: Int) extends Actor {
     private val actorStates = HZActorStates()
 
     override def preStart() {
-        log_trace("preStart")
+        log_trace(s"$name:preStart")
 
         actorStates += startSocketClient(HZSoClientConf(ip,port,10000,0,false),
                                          SocketIOStaticDataBuilder,
@@ -83,33 +83,33 @@ class HZEchoClient(ip: String, port: Int) extends Actor {
 
     def receive = {
         case Terminated(stopedActor: ActorRef) => {
-            log_trace("HZEchoClient:receive:Terminated(%s)".format(stopedActor))
+            log_trace(s"$name:receive:Terminated(%s)".format(stopedActor))
             actorStates -= stopedActor
             if(actorStates.isEmpty) {
-                log_trace("HZEchoClient:receive:Terminated:actorStates.isEmpty==true")
+                log_trace(s"$name:receive:Terminated:actorStates.isEmpty==true")
                 context.system.terminate()
             } else {
-                log_trace("HZEchoClient:receive:Terminated:actorStates.isEmpty==false")
+                log_trace(s"$name:receive:Terminated:actorStates.isEmpty==false")
                 actorStates.foreach(_.actor ! HZStop())
                 System.in.close()   /* InputAcotorはclose()の例外で停止する */
                 context.become(receiveExiting)
             }
         }
         case reason: HZActorReason => {
-            log_debug("HZEchoClient:receive:HZActorReason=%s".format(reason))
+            log_debug(s"$name:receive:HZActorReason=%s".format(reason))
             actorStates.addReason(sender, reason)
         }
     }
 
     def receiveExiting: Actor.Receive = {
         case Terminated(stopedActor: ActorRef) => {
-            log_trace("HZEchoClient:receiveExiting:Terminated(%s)".format(stopedActor))
+            log_trace(s"$name:receiveExiting:Terminated(%s)".format(stopedActor))
             actorStates -= stopedActor
             if(actorStates.isEmpty)
                 context.system.terminate()
         }
         case reason: HZActorReason => {
-            log_debug("HZEchoClient:receiveExiting:HZActorReason=%s".format(reason))
+            log_debug(s"$name:receiveExiting:HZActorReason=%s".format(reason))
             actorStates.addReason(sender, reason)
         }
     }
@@ -120,7 +120,7 @@ object HZEchoClient {
 
     def start(ip: String, port: Int)(implicit system: ActorRefFactory): ActorRef = {
         log_debug("HZEchoClient$:Start")
-        system.actorOf(Props(new HZEchoClient(ip, port)), "HZEchoClient")
+        system.actorOf(Props(new HZEchoClient(ip, port, "HZEchoClient")), "HZEchoClient")
     }
 
     def main(args: Array[String]) {
