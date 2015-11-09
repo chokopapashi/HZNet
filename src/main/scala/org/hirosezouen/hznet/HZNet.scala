@@ -19,6 +19,7 @@ import java.net.SocketAddress
 import java.net.SocketException
 import java.net.SocketTimeoutException
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.language.postfixOps
@@ -140,6 +141,8 @@ object HZSocketControler {
     def log_hzso_actor_trace(msg: => String)(implicit actorName: ActorName) = log_trace(s"$actorName:$msg")
     def log_hzso_actor_trace(msg: => String, th: Throwable)(implicit actorName: ActorName) = log_trace(s"$actorName:$msg",th)
     def log_hzso_actor_error(msg: => String = "")(implicit actorName: ActorName) = log_error(s"$actorName:$msg")
+
+    def getParent(implicit context: ActorContext): ActorRef = Await.result(context.actorSelection("..").resolveOne(1 seconds), Duration.Inf)
 
     /* ---------------------------------------------------------------------*/
 
