@@ -35,7 +35,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
     import hzSoConf._
 
     class SocketServerActor(staticDataBuilder: SocketIOStaticDataBuilder, name: String,
-                            parent: ActorRef, nextReceive: NextReceiver) extends Actor
+                            parent: ActorRef, nextBody: NextReceiver) extends Actor
     {
         log_trace(s"SocketServerActor($staticDataBuilder,$parent)")
 
@@ -142,7 +142,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
                             stopServer1(HZErrorStoped(th))
                         }
                     }
-                    val ioActor = SocketIOActor.start(so, staticDataBuilder, name + ".SocketIO")(nextReceive)
+                    val ioActor = SocketIOActor.start(so, staticDataBuilder, name + ".SocketIO")(nextBody)
                     actorStates += ioActor
                     val so_desc = HZSocketDescription(so)
                     ioActorMap += (ioActor -> so_desc)
