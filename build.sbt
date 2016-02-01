@@ -24,8 +24,8 @@ lazy val root = (project in file(".")).
 
         // add Akka dependency
 //        resolvers += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/",
-        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.0",
-        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.0",
+        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.1",
+        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.1",
 
         // add ScalaTest dependency
         libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
