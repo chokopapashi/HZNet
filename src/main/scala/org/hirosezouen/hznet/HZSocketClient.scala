@@ -108,11 +108,15 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                 parent ! HZSocketIOStart(so_desc, ioActor, self)
                 context.unbecome()
             }
+            case reason: HZConnectTimeout => {
+                log_hzso_actor_debug(s"receiveConnecting:HZConnectTimeout")
+                stopClient1(HZNullReason, Some(sender))
+            }
             case reason: HZErrorStoped => {
                 /*
                  * Stop ConnectorActor when it receive an error reason.
                  */
-                log_hzso_actor_debug(s"receiveConnecting:HZActorStoped=$reason")
+                log_hzso_actor_debug(s"receiveConnecting:HZErrorStoped=$reason")
                 stopClient1(reason, Some(sender))
             }
             case reason: HZActorReason => {
