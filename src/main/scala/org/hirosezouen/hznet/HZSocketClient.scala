@@ -41,6 +41,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
             case _: Exception => Stop
             case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
         }
+
         private var so_desc: HZSocketDescription = null
         private var ioActor: ActorRef = null
         private val actorStates = HZActorStates()
