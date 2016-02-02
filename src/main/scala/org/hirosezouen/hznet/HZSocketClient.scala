@@ -31,7 +31,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
     import hzSoConf._
 
     class SocketClientActor(staticDataBuilder: SocketIOStaticDataBuilder, name: String,
-                            parent: ActorRef, nextReceive: NextReceiver) extends Actor
+                            parent: ActorRef, nextBody: NextReceiver) extends Actor
     {
         log_trace(s"SocketClientActor($staticDataBuilder,$parent)")
 
@@ -103,7 +103,7 @@ case class HZSocketClient(hzSoConf: HZSoClientConf)
                  */
                 log_hzso_actor_debug(s"receiveConnecting:Terminated($stopedActor)")
                 actorStates -= stopedActor
-                ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder,  name + ".SocketIO")(nextReceive)
+                ioActor = SocketIOActor.start(so_desc.so, staticDataBuilder,  name + ".SocketIO")(nextBody)
                 actorStates += ioActor
                 parent ! HZSocketIOStart(so_desc, ioActor, self)
                 context.unbecome()
