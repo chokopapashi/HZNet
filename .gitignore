@@ -6,14 +6,11 @@
 .DS_Store
 .svn/
 *.lnk
-logback.xml
 
 HZEchoClient/
 HZEchoServer/
 HZMultiClient/
 HZEchoBindClient/
-
-application.conf
 
 #original -->
 

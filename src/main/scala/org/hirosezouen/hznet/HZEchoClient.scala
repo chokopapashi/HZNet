@@ -35,7 +35,7 @@ import org.hirosezouen.hzutil.HZLog._
 import HZSocketClient._
 //import HZSocketControler.{NextReceiver, SocketIOActor}
 
-class MyInputActor(in: InputStream) extends InputActor(in, defaultInputFilter) {
+class HZEchoClientInputActor(in: InputStream) extends InputActor(in, defaultInputFilter) {
     val quit_r = "(?i)^q$".r
 
     override val input: PFInput = {
@@ -46,9 +46,9 @@ class MyInputActor(in: InputStream) extends InputActor(in, defaultInputFilter) {
         }
     }
 }
-object MyInputActor {
+object HZEchoClientInputActor {
     def start(in: InputStream)(implicit context: ActorContext): ActorRef
-        = context.actorOf(Props(new MyInputActor(in)), "MyInputActor")
+        = context.actorOf(Props(new HZEchoClientInputActor(in)), "HZEchoClientInputActor")
 }
 
 class HZEchoClient(ip: String, port: Int, name: String) extends Actor {
@@ -77,7 +77,7 @@ class HZEchoClient(ip: String, port: Int, name: String) extends Actor {
             }
         }
 
-        actorStates += MyInputActor.start(System.in)
+        actorStates += HZEchoClientInputActor.start(System.in)
     }
     override def postRestart(reason: Throwable): Unit = ()  /* Disable the call to preStart() after restarts. */
 
@@ -118,33 +118,49 @@ class HZEchoClient(ip: String, port: Int, name: String) extends Actor {
 object HZEchoClient {
     implicit val logger = getLogger(this.getClass.getName)
 
-    def start(ip: String, port: Int)(implicit system: ActorRefFactory): ActorRef = {
-        log_debug("HZEchoClient$:Start")
+    def startHZEchoClientActor(ip: String, port: Int)(implicit system: ActorRefFactory): ActorRef = {
+        log_debug("HZEchoClient$:startHZEchoClientActor")
         system.actorOf(Props(new HZEchoClient(ip, port, "HZEchoClient")), "HZEchoClient")
     }
 
-    def main(args: Array[String]) {
+    def start(args: Array[String]) {
         log_info("HZEchoClient$:Start")
 
         if(args.length < 2) {
-            log_error("error : Argument required.")
+            log_error("arguments required.")
             sys.exit(0)
         }
         val ip = args(0)
         val port = catching(classOf[NumberFormatException]) opt args(1).toInt match {
             case Some(p) => p
             case None => {
-                log_error("error : Port number.")
+                log_error("port number.")
                 sys.exit(1)
             }
         }
 
-        val config = ConfigFactory.parseFile(new File("../application.conf"))
-        implicit val system = ActorSystem("HZEchoClient$", config)
-        start(ip, port)
+//        val conf_dir=scala.sys.props("hznet.home")
+//        log_trace(s"conf_dir=$conf_dir")
+//        val configFile = 
+//            new File("application.conf") match {
+//                case f if(f.exists) => f
+//                case _ => new File(s"$conf_dir/conf/application.conf") match {
+//                    case f if(f.exists) => f
+//                    case _ => {
+//                        log_error("application.conf dosen't found.")
+//                        sys.exit(2)
+//                    }
+//                }
+//            }
+//        log_debug(s"use config file '$configFile'")
+//        val config = ConfigFactory.parseFile(configFile)
+        val config = ConfigFactory.load("application.conf")
+
+        implicit val system = ActorSystem("HZEchoClient", config)
+        startHZEchoClientActor(ip, port)
         Await.result(system.whenTerminated, Duration.Inf)
 
-        log_info("HZEchoClient$:end")
+        log_info("HZEchoClient$:End")
     }
 }
 

@@ -13,6 +13,9 @@ lazy val commonSettings = Seq(
     scalaVersion := "2.11.7"
 )
 
+// sbt-native-packager settings
+enablePlugins(JavaAppPackaging)
+
 lazy val root = (project in file(".")).
     settings(commonSettings: _*).
     settings(
@@ -40,6 +43,11 @@ lazy val root = (project in file(".")).
 
         // add HZActor dependency
         libraryDependencies += "org.hirosezouen" %% "hzactor" % "1.0.0",
+
+        // sbt-native-packager settings
+        executableScriptName := "HZNetSampleRunner",
+        batScriptExtraDefines += """set "APP_CLASSPATH=%APP_CLASSPATH%;.;%HZNET_HOME%\conf"""",
+        batScriptExtraDefines += """set "HZNET_OPTS=%HZNET_OPTS% -Dhznet.home=%HZNET_HOME%"""",
 
         // Avoid sbt warning ([warn] This usage is deprecated and will be removed in sbt 1.0)
         // Current Sbt dose not allow overwrite stabele release created publicLocal task.
