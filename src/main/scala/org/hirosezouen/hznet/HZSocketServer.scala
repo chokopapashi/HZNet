@@ -109,7 +109,7 @@ case class HZSocketServer(hzSoConf: HZSoServerConf)
         def isConnectionFull(): Boolean = {
             hzSoConf.maxConn match {
                 case 0 => false
-                case x if(ioActorMap.size < x) => true
+                case x if(x <= ioActorMap.size) => true
                 case _ => false
             }
         }
