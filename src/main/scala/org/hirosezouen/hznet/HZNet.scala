@@ -94,6 +94,7 @@ case class HZSoServerConf(port: Int,
                           bindAddressOpt: Option[InetAddress] = None,
                           acceptTimeout: Int = 0,
                           recvTimeout: Int = 0,
+                          reuseAddress: Boolean = false,
                           maxConn: Int = 0)
 
 trait SocketIOStaticDataImpl {
