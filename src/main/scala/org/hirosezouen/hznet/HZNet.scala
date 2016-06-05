@@ -12,6 +12,7 @@ import java.io.BufferedOutputStream
 import java.io.IOException
 import java.net.BindException
 import java.net.ConnectException 
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -90,6 +91,7 @@ object HZSoClientConf {
 }
 
 case class HZSoServerConf(port: Int,
+                          bindAddressOpt: Option[InetAddress] = None,
                           acceptTimeout: Int = 0,
                           recvTimeout: Int = 0,
                           maxConn: Int = 0)
