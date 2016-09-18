@@ -10,7 +10,7 @@
 lazy val commonSettings = Seq(
     organization := "org.hirosezouen",
     version      := "1.0.0",
-    scalaVersion := "2.11.7"
+    scalaVersion := "2.11.8"
 )
 
 // sbt-native-packager settings
@@ -27,8 +27,8 @@ lazy val root = (project in file(".")).
 
         // add Akka dependency
 //        resolvers += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/",
-        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.1",
-        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.1",
+        libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4.10",
+        libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.4.10",
 
         // add ScalaTest dependency
         libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
