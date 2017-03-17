@@ -28,7 +28,7 @@ class InetSocketAddressPool(addrRangeStrOpt: Option[String], interfaceNameOpt: O
             ars => ars.trim match {
                 case addressRange_r(start,end) => start.toInetAddressInt to end.toInetAddressInt
                 case address_r(ip) => List(ip.toInetAddressInt)
-                case x => throw new IllegalArgumentException("InetSocketAddressPool:invalid local_address_range format:$x")
+                case x => throw new IllegalArgumentException(s"InetSocketAddressPool:invalid local_address_range format:$x")
             }
         }.toList
         case None => Nil
@@ -46,7 +46,7 @@ class InetSocketAddressPool(addrRangeStrOpt: Option[String], interfaceNameOpt: O
             address => address.trim match {
                 case addressRange_r(start,end) => (start.toInetAddressInt to end.toInetAddressInt).toList
                 case address_r(ip) => List(ip.toInetAddressInt)
-                case x => throw new IllegalArgumentException("InetSocketAddressPool:invalid except IP Address format:$x")
+                case x => throw new IllegalArgumentException(s"InetSocketAddressPool:invalid except IP Address format:$x")
             }
         }.toList
         case None => Nil
