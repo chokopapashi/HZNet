@@ -13,7 +13,7 @@ import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.nio.ByteBuffer
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 package object hznet {
     def macAddressString2Bytes(macString: String): Array[Byte] = {
@@ -26,14 +26,14 @@ package object hznet {
         macBytes.map(b => f"$b%02X").mkString(":")
     }
 
-    def getNetworkInterfaces: List[NetworkInterface] = NetworkInterface.getNetworkInterfaces().toList
+    def getNetworkInterfaces: List[NetworkInterface] = NetworkInterface.getNetworkInterfaces().asScala.toList
     def getNetworkInterfaceByname(name: String): Option[NetworkInterface] = {
         val networkinterface = NetworkInterface.getByName(name)
         if(networkinterface == null) None
         else Some(networkinterface)
     }
     def getNetworkInterfaceAddresses(name: String): List[InetAddress] = getNetworkInterfaceByname(name) match {
-        case Some(networkinterface) => networkinterface.getInetAddresses().toList
+        case Some(networkinterface) => networkinterface.getInetAddresses().asScala.toList
         case None => List.empty[InetAddress]
     }
 
