@@ -9,7 +9,7 @@
 // factor out common settings into a sequence
 lazy val commonSettings = Seq(
     organization := "org.hirosezouen",
-    version      := "1.0.0",
+    version      := "1.1.0",
     scalaVersion := "2.12.1"
 )
 
