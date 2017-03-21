@@ -42,7 +42,7 @@ lazy val root = (project in file(".")).
         libraryDependencies += "org.hirosezouen" %% "hzutil" % "2.1.0",
 
         // add HZActor dependency
-        libraryDependencies += "org.hirosezouen" %% "hzactor" % "1.0.0",
+        libraryDependencies += "org.hirosezouen" %% "hzactor" % "1.1.0",
 
         // sbt-native-packager settings
         executableScriptName := "HZNetSampleRunner",
